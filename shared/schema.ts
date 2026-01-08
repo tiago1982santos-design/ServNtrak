@@ -1,4 +1,4 @@
-import { pgTable, text, serial, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, boolean, timestamp, integer, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -15,6 +15,8 @@ export const clients = pgTable("clients", {
   email: text("email"),
   phone: text("phone"),
   address: text("address"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   hasGarden: boolean("has_garden").default(false),
   hasPool: boolean("has_pool").default(false),
   hasJacuzzi: boolean("has_jacuzzi").default(false),
