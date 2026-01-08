@@ -22,7 +22,7 @@ function Router() {
   const [showSplash, setShowSplash] = useState(true);
 
   if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+    return <SplashScreen onFinish={() => setShowSplash(false)} userName={user?.firstName} />;
   }
 
   if (isLoading) {

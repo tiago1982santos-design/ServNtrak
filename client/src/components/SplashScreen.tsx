@@ -1,14 +1,38 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import logoImage from "@assets/IMG_20191011_125612_639_1767910263605.JPEG";
 
-export function SplashScreen({ onFinish }: { onFinish: () => void }) {
+interface SplashScreenProps {
+  onFinish: () => void;
+  userName?: string | null;
+}
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 12) {
+    return "Bom dia";
+  } else if (hour >= 12 && hour < 19) {
+    return "Boa tarde";
+  } else {
+    return "Boa noite";
+  }
+}
+
+export function SplashScreen({ onFinish, userName }: SplashScreenProps) {
   const [isVisible, setIsVisible] = useState(true);
+  
+  const greeting = useMemo(() => {
+    const baseGreeting = getGreeting();
+    if (userName) {
+      return `${baseGreeting}, ${userName}`;
+    }
+    return baseGreeting;
+  }, [userName]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onFinish, 500); // Wait for exit animation
+      setTimeout(onFinish, 500);
     }, 2000);
     return () => clearTimeout(timer);
   }, [onFinish]);
@@ -27,11 +51,13 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
             transition={{ duration: 0.5 }}
             className="flex flex-col items-center gap-4"
           >
-            <img 
-              src={logoImage} 
-              alt="Peralta Gardens Logo" 
-              className="w-32 h-32 object-contain"
-            />
+            <div className="w-[154px] h-[154px] rounded-full overflow-hidden bg-white flex items-center justify-center">
+              <img 
+                src={logoImage} 
+                alt="Peralta Gardens Logo" 
+                className="w-full h-full object-cover"
+              />
+            </div>
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -40,6 +66,14 @@ export function SplashScreen({ onFinish }: { onFinish: () => void }) {
             >
               <h1 className="text-2xl font-display font-bold text-primary">Peralta Gardens</h1>
               <p className="text-sm text-muted-foreground mt-1">Gestão de Jardins e Piscinas</p>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="text-base font-medium text-foreground mt-3"
+              >
+                {greeting}
+              </motion.p>
             </motion.div>
           </motion.div>
           
