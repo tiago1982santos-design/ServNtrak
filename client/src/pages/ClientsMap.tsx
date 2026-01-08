@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useClients } from "@/hooks/use-clients";
 import { BottomNav } from "@/components/BottomNav";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { Loader2, Leaf, Waves, ThermometerSun, Phone, MapPin, Navigation } from "lucide-react";
+import { Loader2, Leaf, Waves, ThermometerSun, Phone, MapPin, Navigation, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import L from "leaflet";
@@ -9,6 +10,17 @@ import "leaflet/dist/leaflet.css";
 import type { Client } from "@shared/schema";
 
 const defaultCenter: [number, number] = [38.7223, -9.1393];
+
+const tileLayers = {
+  street: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+  },
+};
 
 const createMarkerIcon = (color: string) => new L.DivIcon({
   className: "custom-marker",
@@ -48,6 +60,7 @@ function getClientIcon(client: Client) {
 
 export default function ClientsMap() {
   const { data: clients, isLoading } = useClients();
+  const [mapType, setMapType] = useState<"street" | "satellite">("street");
 
   const clientsWithLocation = clients?.filter(
     (c) => c.latitude !== null && c.longitude !== null
@@ -92,9 +105,23 @@ export default function ClientsMap() {
             scrollWheelZoom={true}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              key={mapType}
+              attribution={tileLayers[mapType].attribution}
+              url={tileLayers[mapType].url}
             />
+            <div className="leaflet-bottom leaflet-left" style={{ bottom: 10, left: 10, zIndex: 1000 }}>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="shadow-md gap-1"
+                onClick={() => setMapType(mapType === "street" ? "satellite" : "street")}
+                data-testid="button-toggle-map-type"
+              >
+                <Layers className="w-4 h-4" />
+                {mapType === "street" ? "Satélite" : "Mapa"}
+              </Button>
+            </div>
             {clientsWithLocation.map((client) => (
               <Marker
                 key={client.id}

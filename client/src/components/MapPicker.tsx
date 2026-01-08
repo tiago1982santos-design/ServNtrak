@@ -1,12 +1,23 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
-import { MapPin, LocateFixed, X } from "lucide-react";
+import { MapPin, LocateFixed, X, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const defaultCenter: [number, number] = [38.7223, -9.1393];
+
+const tileLayers = {
+  street: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: '&copy; <a href="https://www.esri.com/">Esri</a>',
+  },
+};
 
 const markerIcon = new L.Icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -70,6 +81,7 @@ function CenterMap({ center }: { center: [number, number] }) {
 export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
   const [open, setOpen] = useState(false);
   const [tempLocation, setTempLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapType, setMapType] = useState<"street" | "satellite">("street");
 
   const hasLocation = latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined;
   
@@ -132,11 +144,25 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
             scrollWheelZoom={true}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              key={mapType}
+              attribution={tileLayers[mapType].attribution}
+              url={tileLayers[mapType].url}
             />
             <MapClickHandler onLocationChange={handleLocationChange} />
             <LocateControl onLocate={handleLocationChange} />
+            <div className="leaflet-bottom leaflet-left" style={{ bottom: 10, left: 10 }}>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="shadow-md gap-1"
+                onClick={() => setMapType(mapType === "street" ? "satellite" : "street")}
+                data-testid="button-toggle-map-type"
+              >
+                <Layers className="w-4 h-4" />
+                {mapType === "street" ? "Satélite" : "Mapa"}
+              </Button>
+            </div>
             {currentMarker && (
               <Marker position={[currentMarker.lat, currentMarker.lng]} icon={markerIcon} />
             )}
