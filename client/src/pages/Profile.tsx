@@ -38,17 +38,7 @@ export default function Profile() {
           <div className="bg-card border border-border rounded-2xl overflow-hidden divide-y divide-border/50">
             <div className="p-4 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center text-secondary-foreground">
-                <User className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Nome de utilizador</p>
-                <p className="font-medium text-sm">{user.username || "N/A"}</p>
-              </div>
-            </div>
-            
-            <div className="p-4 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center text-secondary-foreground">
-                <Mail className="w-4 h-4" />
+                <ShieldCheck className="w-4 h-4" />
               </div>
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">E-mail</p>
@@ -58,7 +48,7 @@ export default function Profile() {
 
             <div className="p-4 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-secondary/50 flex items-center justify-center text-secondary-foreground">
-                <ShieldCheck className="w-4 h-4" />
+                <User className="w-4 h-4" />
               </div>
               <div className="flex-1">
                 <p className="text-xs text-muted-foreground">ID da Conta</p>
