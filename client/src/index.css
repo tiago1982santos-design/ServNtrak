@@ -13,21 +13,21 @@
   --background: 210 20% 98%;
   --foreground: 220 15% 20%;
   
-  /* Primary: Deep Green (Gardening) */
-  --primary: 158 45% 45%;
+  /* Primary: Peralta Gardens Green (from logo) */
+  --primary: 145 63% 32%;
   --primary-foreground: 0 0% 100%;
   
-  /* Secondary: Soft Blue (Pool/Water) */
-  --secondary: 199 55% 90%;
-  --secondary-foreground: 199 60% 30%;
+  /* Secondary: Fresh Leaf Green (lighter complement) */
+  --secondary: 145 40% 90%;
+  --secondary-foreground: 145 63% 20%;
   
-  /* Accent: Warm Earth/Jacuzzi */
-  --accent: 35 30% 90%;
-  --accent-foreground: 35 40% 30%;
+  /* Accent: Pool Blue (complementary contrast) */
+  --accent: 195 70% 45%;
+  --accent-foreground: 0 0% 100%;
   
-  /* UI Elements */
-  --muted: 210 20% 96%;
-  --muted-foreground: 215 15% 45%;
+  /* Earth Tone: Warm Sand/Stone */
+  --muted: 35 20% 94%;
+  --muted-foreground: 35 10% 40%;
   --card: 0 0% 100%;
   --card-foreground: 220 15% 20%;
   --popover: 0 0% 100%;
