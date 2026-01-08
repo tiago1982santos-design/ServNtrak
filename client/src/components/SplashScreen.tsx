@@ -33,7 +33,7 @@ export function SplashScreen({ onFinish, userName }: SplashScreenProps) {
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(onFinish, 500);
-    }, 2000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [onFinish]);
 
@@ -51,7 +51,7 @@ export function SplashScreen({ onFinish, userName }: SplashScreenProps) {
             transition={{ duration: 0.5 }}
             className="flex flex-col items-center gap-4"
           >
-            <div className="w-[154px] h-[154px] rounded-full overflow-hidden bg-white flex items-center justify-center">
+            <div className="w-[185px] h-[185px] rounded-full overflow-hidden bg-white flex items-center justify-center">
               <img 
                 src={logoImage} 
                 alt="Peralta Gardens Logo" 
