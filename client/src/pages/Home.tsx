@@ -29,8 +29,8 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-secondary/20 rounded-full translate-y-1/2 -translate-x-1/4 blur-2xl" />
         
         <div className="relative z-10">
-          <p className="text-primary-foreground/80 font-medium">Bem-vindo,</p>
-          <h1 className="text-3xl font-display font-bold text-white mt-1">{userName}</h1>
+          <p className="text-primary-foreground/80 font-medium">Peralta Gardens,</p>
+          <h1 className="text-3xl font-display font-bold text-white mt-1">Olá {userName}</h1>
           
           <div className="mt-6 flex gap-4">
             <div className="flex-1 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">

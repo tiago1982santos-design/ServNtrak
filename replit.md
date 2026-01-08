@@ -1,12 +1,16 @@
-# Service Pro - Garden, Pool & Jacuzzi Management App
+# Peralta Gardens - Gestão de Jardins, Piscinas e Jacuzzis
 
 ## Overview
 
-Service Pro is a mobile-first web application for service professionals to manage their gardening, pool, and jacuzzi maintenance business. The app enables users to track clients, schedule appointments, and log completed services. Built with React frontend and Express backend, using PostgreSQL for data persistence and Replit Auth for user authentication.
+A Peralta Gardens é uma aplicação mobile-first desenvolvida para o Tiago Santos gerir a sua empresa de manutenção de jardins, piscinas e jacuzzis. A aplicação permite acompanhar clientes, agendar serviços e registar atividades concluídas. Foi construída com React no frontend e Express no backend, utilizando PostgreSQL para persistência de dados e Replit Auth para autenticação.
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+- **Utilizador**: Tiago Santos
+- **Empresa**: Peralta Gardens
+- **Língua**: Português de Portugal (PT-PT)
+- **Estilo de Comunicação**: Simples e direto.
+- **Serviços Atuais**: Jardim, Piscina, Jacuzzi e Geral.
 
 ## System Architecture
 

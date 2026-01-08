@@ -27,7 +27,7 @@ export default function Profile() {
           
           <div>
             <h2 className="text-xl font-bold font-display">{user.firstName} {user.lastName}</h2>
-            <p className="text-sm text-muted-foreground">Gestor de Serviços</p>
+            <p className="text-sm text-muted-foreground">Peralta Gardens</p>
           </div>
         </div>
 
