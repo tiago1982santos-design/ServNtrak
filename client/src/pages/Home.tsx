@@ -54,7 +54,7 @@ export default function Home() {
       </div>
 
       {/* Main Content */}
-      <div className="px-6 -mt-12 relative z-20 space-y-8">
+      <div className="px-6 -mt-6 relative z-20 space-y-8">
         
         {/* Today's Schedule */}
         <section>
