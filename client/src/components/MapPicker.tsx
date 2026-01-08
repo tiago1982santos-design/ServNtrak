@@ -150,13 +150,20 @@ export function MapPicker({ latitude, longitude, onChange }: MapPickerProps) {
             />
             <MapClickHandler onLocationChange={handleLocationChange} />
             <LocateControl onLocate={handleLocationChange} />
-            <div className="leaflet-bottom leaflet-left" style={{ bottom: 10, left: 10 }}>
+            <div 
+              className="leaflet-bottom leaflet-left" 
+              style={{ bottom: 10, left: 10, zIndex: 1000 }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
                 className="shadow-md gap-1"
-                onClick={() => setMapType(mapType === "street" ? "satellite" : "street")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMapType(mapType === "street" ? "satellite" : "street");
+                }}
                 data-testid="button-toggle-map-type"
               >
                 <Layers className="w-4 h-4" />
