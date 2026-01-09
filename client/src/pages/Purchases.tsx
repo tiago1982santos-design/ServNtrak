@@ -19,8 +19,9 @@ import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { 
   Plus, ShoppingCart, Store as StoreIcon, Tag, Loader2, ChevronRight, 
-  Trash2, Edit2, MapPin, Phone, Mail, Building2, Package
+  Trash2, Edit2, MapPin, Phone, Mail, Building2, Package, Scan
 } from "lucide-react";
+import { DocumentScanDialog } from "@/components/DocumentScanDialog";
 import type { PurchaseCategory, Store, PurchaseWithDetails } from "@shared/schema";
 
 export default function Purchases() {
@@ -29,6 +30,7 @@ export default function Purchases() {
   const [isAddPurchaseOpen, setIsAddPurchaseOpen] = useState(false);
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [isScanDialogOpen, setIsScanDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<PurchaseCategory[]>({
@@ -81,12 +83,12 @@ export default function Purchases() {
           </TabsList>
 
           <TabsContent value="compras" className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <Select 
                 value={selectedCategory?.toString() || "all"} 
                 onValueChange={(v) => setSelectedCategory(v === "all" ? null : Number(v))}
               >
-                <SelectTrigger className="w-48" data-testid="select-category-filter">
+                <SelectTrigger className="w-40" data-testid="select-category-filter">
                   <SelectValue placeholder="Todas as categorias" />
                 </SelectTrigger>
                 <SelectContent>
@@ -97,13 +99,31 @@ export default function Purchases() {
                 </SelectContent>
               </Select>
               
-              <AddPurchaseDialog 
-                open={isAddPurchaseOpen} 
-                onOpenChange={setIsAddPurchaseOpen}
-                categories={categories || []}
-                stores={stores || []}
-              />
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setIsScanDialogOpen(true)}
+                  data-testid="button-scan-document"
+                >
+                  <Scan className="w-4 h-4 mr-1" />
+                  Digitalizar
+                </Button>
+                <AddPurchaseDialog 
+                  open={isAddPurchaseOpen} 
+                  onOpenChange={setIsAddPurchaseOpen}
+                  categories={categories || []}
+                  stores={stores || []}
+                />
+              </div>
             </div>
+
+            <DocumentScanDialog
+              open={isScanDialogOpen}
+              onOpenChange={setIsScanDialogOpen}
+              categories={categories || []}
+              stores={stores || []}
+            />
 
             {purchasesLoading ? (
               <div className="flex justify-center py-12">
