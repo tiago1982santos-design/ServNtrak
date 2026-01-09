@@ -12,6 +12,7 @@ import {
   Droplets,
   AlertTriangle,
   Moon,
+  CloudMoon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,17 @@ const iconMap: Record<string, typeof Sun> = {
   sun: Sun,
   cloud: Cloud,
   "cloud-sun": CloudSun,
+  "cloud-rain": CloudRain,
+  "cloud-drizzle": CloudDrizzle,
+  "cloud-lightning": CloudLightning,
+  "cloud-fog": CloudFog,
+  snowflake: Snowflake,
+};
+
+const nightIconMap: Record<string, typeof Moon> = {
+  sun: Moon,
+  "cloud-sun": CloudMoon,
+  cloud: Cloud,
   "cloud-rain": CloudRain,
   "cloud-drizzle": CloudDrizzle,
   "cloud-lightning": CloudLightning,
@@ -41,12 +53,17 @@ export function WeatherWidget({
     return (
       <div
         className={cn(
-          "flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-xl px-3 py-2",
+          "bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20",
           className
         )}
       >
-        <div className="w-5 h-5 rounded-full bg-white/20 animate-pulse" />
-        <div className="w-8 h-4 bg-white/20 rounded animate-pulse" />
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-xl bg-white/20 animate-pulse" />
+          <div className="space-y-2">
+            <div className="w-16 h-6 bg-white/20 rounded animate-pulse" />
+            <div className="w-24 h-4 bg-white/20 rounded animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -58,62 +75,97 @@ export function WeatherWidget({
   const weatherInfo = getWeatherInfo(weather.weatherCode);
   const WeatherIcon = weather.isDay
     ? iconMap[weatherInfo.icon] || Cloud
-    : weather.weatherCode === 0
-      ? Moon
-      : iconMap[weatherInfo.icon] || Cloud;
+    : nightIconMap[weatherInfo.icon] || Moon;
+
+  const iconBgClass = weather.isDay
+    ? weather.weatherCode === 0
+      ? "bg-gradient-to-br from-yellow-400/30 to-orange-400/20"
+      : weather.weatherCode >= 61 && weather.weatherCode <= 67
+        ? "bg-gradient-to-br from-blue-400/30 to-blue-600/20"
+        : weather.weatherCode >= 95
+          ? "bg-gradient-to-br from-purple-400/30 to-gray-600/20"
+          : "bg-gradient-to-br from-gray-300/30 to-gray-400/20"
+    : "bg-gradient-to-br from-indigo-500/30 to-purple-600/20";
+
+  const iconColorClass = weather.isDay
+    ? weather.weatherCode === 0
+      ? "text-yellow-300"
+      : weather.weatherCode >= 61 && weather.weatherCode <= 67
+        ? "text-blue-300"
+        : weather.weatherCode >= 95
+          ? "text-purple-300"
+          : "text-white"
+    : "text-indigo-200";
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex items-center gap-3">
-        <div
-          className="flex items-center gap-2 bg-white/10 backdrop-blur-md rounded-xl px-3 py-2 border border-white/20"
-          data-testid="weather-current"
-        >
-          <WeatherIcon className="w-5 h-5 text-white" />
-          <span className="text-lg font-bold text-white">
-            {weather.temperature}°
-          </span>
+    <div className={cn("space-y-3", className)}>
+      <div
+        className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20"
+        data-testid="weather-current"
+      >
+        <div className="flex items-center gap-4">
+          <div
+            className={cn(
+              "w-14 h-14 rounded-xl flex items-center justify-center",
+              iconBgClass
+            )}
+          >
+            <WeatherIcon className={cn("w-8 h-8", iconColorClass)} />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold text-white">
+                {weather.temperature}°
+              </span>
+              <span className="text-sm text-white/60">C</span>
+            </div>
+            <p className="text-sm text-white/80 mt-0.5 capitalize">
+              {weatherInfo.description}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5 items-end">
+            {weather.windSpeed >= 10 && (
+              <div
+                className="flex items-center gap-1.5 text-white/70"
+                data-testid="weather-wind"
+              >
+                <Wind className="w-4 h-4" />
+                <span className="text-xs font-medium">
+                  {Math.round(weather.windSpeed)} km/h
+                </span>
+              </div>
+            )}
+            {weather.precipitation > 0 && (
+              <div
+                className="flex items-center gap-1.5 text-white/70"
+                data-testid="weather-rain"
+              >
+                <Droplets className="w-4 h-4" />
+                <span className="text-xs font-medium">
+                  {weather.precipitation} mm
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-
-        {weather.windSpeed >= 25 && (
-          <div
-            className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md rounded-xl px-2.5 py-2 border border-white/20"
-            data-testid="weather-wind"
-          >
-            <Wind className="w-4 h-4 text-white/80" />
-            <span className="text-sm text-white/90">
-              {Math.round(weather.windSpeed)} km/h
-            </span>
-          </div>
-        )}
-
-        {weather.precipitation > 0 && (
-          <div
-            className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md rounded-xl px-2.5 py-2 border border-white/20"
-            data-testid="weather-rain"
-          >
-            <Droplets className="w-4 h-4 text-white/80" />
-            <span className="text-sm text-white/90">
-              {weather.precipitation} mm
-            </span>
-          </div>
-        )}
       </div>
 
       {showAlerts && weather.alerts.length > 0 && (
-        <div className="space-y-1.5" data-testid="weather-alerts">
+        <div className="space-y-2" data-testid="weather-alerts">
           {weather.alerts.map((alert, index) => (
             <div
               key={index}
               className={cn(
-                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium backdrop-blur-md",
                 alert.severity === "danger"
                   ? "bg-red-500/20 text-red-100 border border-red-400/30"
                   : "bg-amber-500/20 text-amber-100 border border-amber-400/30"
               )}
               data-testid={`weather-alert-${alert.type}`}
             >
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <AlertTriangle className="w-5 h-5 shrink-0" />
               <span>{alert.message}</span>
             </div>
           ))}
@@ -133,9 +185,7 @@ export function WeatherWidgetCompact({ className }: { className?: string }) {
   const weatherInfo = getWeatherInfo(weather.weatherCode);
   const WeatherIcon = weather.isDay
     ? iconMap[weatherInfo.icon] || Cloud
-    : weather.weatherCode === 0
-      ? Moon
-      : iconMap[weatherInfo.icon] || Cloud;
+    : nightIconMap[weatherInfo.icon] || Moon;
 
   const hasAlert = weather.alerts.length > 0;
 
