@@ -39,14 +39,12 @@ export default function Purchases() {
     queryKey: ['/api/stores'],
   });
 
+  const purchasesUrl = selectedCategory 
+    ? `/api/purchases?categoryId=${selectedCategory}`
+    : '/api/purchases';
+  
   const { data: purchases, isLoading: purchasesLoading } = useQuery<PurchaseWithDetails[]>({
-    queryKey: ['/api/purchases', selectedCategory],
-    queryFn: () => {
-      const url = selectedCategory 
-        ? `/api/purchases?categoryId=${selectedCategory}`
-        : '/api/purchases';
-      return fetch(url, { credentials: 'include' }).then(r => r.json());
-    },
+    queryKey: [purchasesUrl],
   });
 
   const filteredPurchases = purchases || [];
@@ -59,8 +57,8 @@ export default function Purchases() {
             <ShoppingCart className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-display font-bold text-white">Compras</h1>
-            <p className="text-primary-foreground/80 text-sm">Gestão de compras e stock</p>
+            <h1 className="text-2xl font-display font-bold text-white" data-testid="heading-purchases">Compras</h1>
+            <p className="text-primary-foreground/80 text-sm" data-testid="text-purchases-subtitle">Gestão de compras e stock</p>
           </div>
         </div>
       </div>
@@ -180,17 +178,19 @@ function PurchaseCard({ purchase }: { purchase: PurchaseWithDetails }) {
   const deleteMutation = useMutation({
     mutationFn: () => apiRequest('DELETE', `/api/purchases/${purchase.id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/purchases'] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/purchases')
+      });
       toast({ title: "Compra eliminada" });
     },
   });
 
   return (
-    <Card className="p-4">
+    <Card className="p-4" data-testid={`card-purchase-${purchase.id}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate">{purchase.productName}</h3>
-          <p className="text-sm text-muted-foreground">{purchase.store.name}</p>
+          <h3 className="font-semibold text-foreground truncate" data-testid={`text-purchase-name-${purchase.id}`}>{purchase.productName}</h3>
+          <p className="text-sm text-muted-foreground" data-testid={`text-purchase-store-${purchase.id}`}>{purchase.store.name}</p>
           <div className="flex gap-2 mt-2">
             <Badge variant="secondary">{purchase.category.name}</Badge>
             <Badge variant="outline">Qtd: {purchase.quantity}</Badge>
@@ -233,10 +233,10 @@ function StoreCard({ store }: { store: Store }) {
   });
 
   return (
-    <Card className="p-4">
+    <Card className="p-4" data-testid={`card-store-${store.id}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate flex items-center gap-2">
+          <h3 className="font-semibold text-foreground truncate flex items-center gap-2" data-testid={`text-store-name-${store.id}`}>
             <Building2 className="w-4 h-4 text-primary" />
             {store.name}
           </h3>
@@ -283,12 +283,12 @@ function CategoryCard({ category }: { category: PurchaseCategory }) {
   });
 
   return (
-    <Card className="p-3 flex items-center justify-between">
+    <Card className="p-3 flex items-center justify-between" data-testid={`card-category-${category.id}`}>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center">
           <Tag className="w-5 h-5 text-secondary-foreground" />
         </div>
-        <span className="font-medium text-foreground">{category.name}</span>
+        <span className="font-medium text-foreground" data-testid={`text-category-name-${category.id}`}>{category.name}</span>
         {category.isDefault && (
           <Badge variant="outline" className="text-xs">Predefinida</Badge>
         )}
@@ -352,7 +352,9 @@ function AddPurchaseDialog({
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/purchases'] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/purchases')
+      });
       toast({ title: "Compra adicionada com sucesso" });
       form.reset();
       onOpenChange(false);
