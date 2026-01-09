@@ -1,10 +1,11 @@
 import { db } from "./db";
 import {
-  clients, appointments, serviceLogs, reminders,
+  clients, appointments, serviceLogs, reminders, quickPhotos,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
-  type InsertReminder, type Reminder
+  type InsertReminder, type Reminder,
+  type InsertQuickPhoto, type QuickPhoto
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -32,6 +33,11 @@ export interface IStorage {
   createReminder(reminder: InsertReminder & { userId: string }): Promise<Reminder>;
   updateReminder(id: number, userId: string, updates: Partial<InsertReminder>): Promise<Reminder | undefined>;
   deleteReminder(id: number, userId: string): Promise<void>;
+
+  // Quick Photos
+  getQuickPhotos(userId: string, clientId?: number): Promise<QuickPhoto[]>;
+  createQuickPhoto(photo: InsertQuickPhoto & { userId: string }): Promise<QuickPhoto>;
+  deleteQuickPhoto(id: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -142,6 +148,27 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReminder(id: number, userId: string): Promise<void> {
     await db.delete(reminders).where(and(eq(reminders.id, id), eq(reminders.userId, userId)));
+  }
+
+  // Quick Photos
+  async getQuickPhotos(userId: string, clientId?: number): Promise<QuickPhoto[]> {
+    const conditions = [eq(quickPhotos.userId, userId)];
+    if (clientId) conditions.push(eq(quickPhotos.clientId, clientId));
+    
+    return await db
+      .select()
+      .from(quickPhotos)
+      .where(and(...conditions))
+      .orderBy(desc(quickPhotos.createdAt));
+  }
+
+  async createQuickPhoto(photo: InsertQuickPhoto & { userId: string }): Promise<QuickPhoto> {
+    const [newPhoto] = await db.insert(quickPhotos).values(photo).returning();
+    return newPhoto;
+  }
+
+  async deleteQuickPhoto(id: number, userId: string): Promise<void> {
+    await db.delete(quickPhotos).where(and(eq(quickPhotos.id, id), eq(quickPhotos.userId, userId)));
   }
 }
 

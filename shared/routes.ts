@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, clients, appointments, serviceLogs, reminders } from './schema';
+import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, insertQuickPhotoSchema, clients, appointments, serviceLogs, reminders, quickPhotos } from './schema';
 
 // Shared error schemas
 export const errorSchemas = {
@@ -163,6 +163,35 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/reminders/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  quickPhotos: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/quick-photos',
+      input: z.object({
+        clientId: z.string().optional(),
+      }).optional(),
+      responses: {
+        200: z.array(z.custom<typeof quickPhotos.$inferSelect & { client: typeof clients.$inferSelect }>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/quick-photos',
+      input: insertQuickPhotoSchema,
+      responses: {
+        201: z.custom<typeof quickPhotos.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/quick-photos/:id',
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,

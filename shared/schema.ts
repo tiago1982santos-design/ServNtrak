@@ -62,6 +62,15 @@ export const reminders = pgTable("reminders", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const quickPhotos = pgTable("quick_photos", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  clientId: integer("client_id").notNull(),
+  photoUrl: text("photo_url").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -72,6 +81,14 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   appointments: many(appointments),
   serviceLogs: many(serviceLogs),
   reminders: many(reminders),
+  quickPhotos: many(quickPhotos),
+}));
+
+export const quickPhotosRelations = relations(quickPhotos, ({ one }) => ({
+  client: one(clients, {
+    fields: [quickPhotos.clientId],
+    references: [clients.id],
+  }),
 }));
 
 export const remindersRelations = relations(reminders, ({ one }) => ({
@@ -101,6 +118,7 @@ export const insertClientSchema = createInsertSchema(clients).omit({ id: true, u
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, userId: true, createdAt: true });
 export const insertServiceLogSchema = createInsertSchema(serviceLogs).omit({ id: true, userId: true, createdAt: true });
 export const insertReminderSchema = createInsertSchema(reminders).omit({ id: true, userId: true, createdAt: true });
+export const insertQuickPhotoSchema = createInsertSchema(quickPhotos).omit({ id: true, userId: true, createdAt: true });
 
 // === TYPES ===
 
@@ -115,3 +133,6 @@ export type InsertServiceLog = z.infer<typeof insertServiceLogSchema>;
 
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = z.infer<typeof insertReminderSchema>;
+
+export type QuickPhoto = typeof quickPhotos.$inferSelect;
+export type InsertQuickPhoto = z.infer<typeof insertQuickPhotoSchema>;

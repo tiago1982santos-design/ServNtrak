@@ -259,5 +259,49 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  // --- Quick Photos ---
+
+  app.get(api.quickPhotos.list.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const clientId = req.query.clientId ? Number(req.query.clientId) : undefined;
+    const photos = await storage.getQuickPhotos(userId, clientId);
+    
+    const enrichedPhotos = await Promise.all(photos.map(async (photo) => {
+      const client = await storage.getClient(photo.clientId);
+      return { ...photo, client: client! };
+    }));
+
+    res.json(enrichedPhotos);
+  });
+
+  app.post(api.quickPhotos.create.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.quickPhotos.create.input.parse(req.body);
+      const userId = (req.user as any).claims.sub;
+      
+      const client = await storage.getClient(input.clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(400).json({ message: "Invalid client" });
+      }
+
+      const photo = await storage.createQuickPhoto({ ...input, userId });
+      res.status(201).json(photo);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  app.delete(api.quickPhotos.delete.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    await storage.deleteQuickPhoto(Number(req.params.id), userId);
+    res.status(204).end();
+  });
+
   return httpServer;
 }
