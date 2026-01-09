@@ -166,18 +166,37 @@ export async function registerRoutes(
     res.json(logs);
   });
 
+  // Get unpaid extra services - must be before :id route
+  app.get(api.serviceLogs.unpaid.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const unpaidLogs = await storage.getUnpaidExtraServices(userId);
+    res.json(unpaidLogs);
+  });
+
+  app.get(api.serviceLogs.get.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const log = await storage.getServiceLogWithEntries(Number(req.params.id), userId);
+    if (!log) return res.status(404).json({ message: "Service log not found" });
+    res.json(log);
+  });
+
   app.post(api.serviceLogs.create.path, requireAuth, async (req, res) => {
     try {
       const input = api.serviceLogs.create.input.parse(req.body);
       const userId = (req.user as any).claims.sub;
       
-       // Verify client belongs to user
+      // Verify client belongs to user
       const client = await storage.getClient(input.clientId);
       if (!client || client.userId !== userId) {
         return res.status(400).json({ message: "Invalid client" });
       }
 
-      const log = await storage.createServiceLog({ ...input, userId });
+      const { laborEntries, materialEntries, ...logData } = input;
+      const log = await storage.createServiceLogWithEntries(
+        { ...logData, userId },
+        laborEntries || [],
+        materialEntries || []
+      );
       res.status(201).json(log);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -188,6 +207,13 @@ export async function registerRoutes(
       }
       throw err;
     }
+  });
+
+  app.put(api.serviceLogs.markPaid.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const updated = await storage.markServiceLogAsPaid(Number(req.params.id), userId);
+    if (!updated) return res.status(404).json({ message: "Service log not found" });
+    res.json(updated);
   });
 
   app.delete(api.serviceLogs.delete.path, requireAuth, async (req, res) => {

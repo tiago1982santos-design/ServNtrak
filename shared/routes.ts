@@ -1,5 +1,40 @@
 import { z } from 'zod';
-import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, insertQuickPhotoSchema, clients, appointments, serviceLogs, reminders, quickPhotos } from './schema';
+import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, insertQuickPhotoSchema, clients, appointments, serviceLogs, reminders, quickPhotos, serviceLogLaborEntries, serviceLogMaterialEntries } from './schema';
+
+// Robust numeric validator: preprocess to reject NaN/Infinity before coercion
+const safePositiveNumber = (max: number, fieldName: string) =>
+  z.preprocess(
+    (val) => {
+      const num = typeof val === 'string' ? parseFloat(val) : Number(val);
+      if (!Number.isFinite(num) || Number.isNaN(num)) return undefined;
+      return num;
+    },
+    z.number({ required_error: `${fieldName} é obrigatório`, invalid_type_error: `${fieldName} inválido` })
+      .positive(`${fieldName} deve ser positivo`)
+      .max(max, `${fieldName} muito alto (máx ${max})`)
+  );
+
+// Labor entry input schema for creating service logs
+export const laborEntryInputSchema = z.object({
+  workerName: z.string().min(1, "Nome do funcionário é obrigatório"),
+  hours: safePositiveNumber(24, "Horas"),
+  hourlyRate: safePositiveNumber(1000, "Valor/hora"),
+  cost: z.number().optional(),
+});
+
+// Material entry input schema for creating service logs
+export const materialEntryInputSchema = z.object({
+  materialName: z.string().min(1, "Nome do material é obrigatório"),
+  quantity: safePositiveNumber(10000, "Quantidade"),
+  unitPrice: safePositiveNumber(100000, "Preço unitário"),
+  cost: z.number().optional(),
+});
+
+// Extended service log input with entries
+export const createServiceLogWithEntriesInput = insertServiceLogSchema.extend({
+  laborEntries: z.array(laborEntryInputSchema).default([]),
+  materialEntries: z.array(materialEntryInputSchema).default([]),
+});
 
 // Shared error schemas
 export const errorSchemas = {
@@ -112,13 +147,39 @@ export const api = {
         200: z.array(z.custom<typeof serviceLogs.$inferSelect>()),
       },
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/service-logs/:id',
+      responses: {
+        200: z.custom<typeof serviceLogs.$inferSelect & {
+          laborEntries: (typeof serviceLogLaborEntries.$inferSelect)[];
+          materialEntries: (typeof serviceLogMaterialEntries.$inferSelect)[];
+        }>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    unpaid: {
+      method: 'GET' as const,
+      path: '/api/service-logs/unpaid',
+      responses: {
+        200: z.array(z.custom<typeof serviceLogs.$inferSelect & { clientName: string }>()),
+      },
+    },
     create: {
       method: 'POST' as const,
       path: '/api/service-logs',
-      input: insertServiceLogSchema,
+      input: createServiceLogWithEntriesInput,
       responses: {
         201: z.custom<typeof serviceLogs.$inferSelect>(),
         400: errorSchemas.validation,
+      },
+    },
+    markPaid: {
+      method: 'PUT' as const,
+      path: '/api/service-logs/:id/mark-paid',
+      responses: {
+        200: z.custom<typeof serviceLogs.$inferSelect>(),
+        404: errorSchemas.notFound,
       },
     },
     delete: {

@@ -56,6 +56,34 @@ export const serviceLogs = pgTable("service_logs", {
   description: text("description").notNull(), // What was done
   photosBefore: text("photos_before").array(), // URLs of before photos
   photosAfter: text("photos_after").array(), // URLs of after photos
+  // Billing fields
+  billingType: text("billing_type").default("monthly"), // 'monthly' (included) or 'extra' (additional charge)
+  laborSubtotal: doublePrecision("labor_subtotal").default(0),
+  materialsSubtotal: doublePrecision("materials_subtotal").default(0),
+  totalAmount: doublePrecision("total_amount").default(0),
+  isPaymentCollected: boolean("is_payment_collected").default(false), // Only for extra services
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Labor entries for service logs
+export const serviceLogLaborEntries = pgTable("service_log_labor_entries", {
+  id: serial("id").primaryKey(),
+  serviceLogId: integer("service_log_id").notNull(),
+  workerName: text("worker_name").notNull(),
+  hours: doublePrecision("hours").notNull(),
+  hourlyRate: doublePrecision("hourly_rate").notNull(),
+  cost: doublePrecision("cost").notNull(), // hours * hourlyRate
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Material entries for service logs
+export const serviceLogMaterialEntries = pgTable("service_log_material_entries", {
+  id: serial("id").primaryKey(),
+  serviceLogId: integer("service_log_id").notNull(),
+  materialName: text("material_name").notNull(),
+  quantity: doublePrecision("quantity").notNull(),
+  unitPrice: doublePrecision("unit_price").notNull(),
+  cost: doublePrecision("cost").notNull(), // quantity * unitPrice
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -116,10 +144,26 @@ export const appointmentsRelations = relations(appointments, ({ one }) => ({
   }),
 }));
 
-export const serviceLogsRelations = relations(serviceLogs, ({ one }) => ({
+export const serviceLogsRelations = relations(serviceLogs, ({ one, many }) => ({
   client: one(clients, {
     fields: [serviceLogs.clientId],
     references: [clients.id],
+  }),
+  laborEntries: many(serviceLogLaborEntries),
+  materialEntries: many(serviceLogMaterialEntries),
+}));
+
+export const serviceLogLaborEntriesRelations = relations(serviceLogLaborEntries, ({ one }) => ({
+  serviceLog: one(serviceLogs, {
+    fields: [serviceLogLaborEntries.serviceLogId],
+    references: [serviceLogs.id],
+  }),
+}));
+
+export const serviceLogMaterialEntriesRelations = relations(serviceLogMaterialEntries, ({ one }) => ({
+  serviceLog: one(serviceLogs, {
+    fields: [serviceLogMaterialEntries.serviceLogId],
+    references: [serviceLogs.id],
   }),
 }));
 
@@ -130,6 +174,8 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({ i
 export const insertServiceLogSchema = createInsertSchema(serviceLogs).omit({ id: true, userId: true, createdAt: true });
 export const insertReminderSchema = createInsertSchema(reminders).omit({ id: true, userId: true, createdAt: true });
 export const insertQuickPhotoSchema = createInsertSchema(quickPhotos).omit({ id: true, userId: true, createdAt: true });
+export const insertServiceLogLaborEntrySchema = createInsertSchema(serviceLogLaborEntries).omit({ id: true, createdAt: true });
+export const insertServiceLogMaterialEntrySchema = createInsertSchema(serviceLogMaterialEntries).omit({ id: true, createdAt: true });
 
 // === TYPES ===
 
@@ -142,8 +188,20 @@ export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 export type ServiceLog = typeof serviceLogs.$inferSelect;
 export type InsertServiceLog = z.infer<typeof insertServiceLogSchema>;
 
+export type ServiceLogLaborEntry = typeof serviceLogLaborEntries.$inferSelect;
+export type InsertServiceLogLaborEntry = z.infer<typeof insertServiceLogLaborEntrySchema>;
+
+export type ServiceLogMaterialEntry = typeof serviceLogMaterialEntries.$inferSelect;
+export type InsertServiceLogMaterialEntry = z.infer<typeof insertServiceLogMaterialEntrySchema>;
+
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = z.infer<typeof insertReminderSchema>;
 
 export type QuickPhoto = typeof quickPhotos.$inferSelect;
 export type InsertQuickPhoto = z.infer<typeof insertQuickPhotoSchema>;
+
+// Extended types for service logs with entries
+export type ServiceLogWithEntries = ServiceLog & {
+  laborEntries: ServiceLogLaborEntry[];
+  materialEntries: ServiceLogMaterialEntry[];
+};

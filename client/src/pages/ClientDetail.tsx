@@ -17,6 +17,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { insertServiceLogSchema, insertAppointmentSchema, insertClientSchema, type Client } from "@shared/schema";
+import { createServiceLogWithEntriesInput } from "@shared/routes";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -229,24 +230,78 @@ export default function ClientDetail() {
   );
 }
 
+type LaborEntry = { workerName: string; hours: number; hourlyRate: number; cost: number };
+type MaterialEntry = { materialName: string; quantity: number; unitPrice: number; cost: number };
+
+const serviceLogFormSchema = insertServiceLogSchema.extend({
+  type: z.enum(["Garden", "Pool", "Jacuzzi", "General"]),
+  description: z.string().min(1, "Descrição obrigatória"),
+  billingType: z.enum(["monthly", "extra"]).default("monthly"),
+});
+
 function AddServiceLogDialog({ clientId }: { clientId: number }) {
   const [open, setOpen] = useState(false);
   const [photosBefore, setPhotosBefore] = useState<string[]>([]);
   const [photosAfter, setPhotosAfter] = useState<string[]>([]);
+  const [laborEntries, setLaborEntries] = useState<LaborEntry[]>([]);
+  const [materialEntries, setMaterialEntries] = useState<MaterialEntry[]>([]);
   const beforeInputRef = useRef<HTMLInputElement>(null);
   const afterInputRef = useRef<HTMLInputElement>(null);
   const createLog = useCreateServiceLog();
   const { uploadFile, isUploading } = useUpload();
   
-  const form = useForm<z.infer<typeof insertServiceLogSchema>>({
-    resolver: zodResolver(insertServiceLogSchema),
+  const form = useForm<z.infer<typeof serviceLogFormSchema>>({
+    resolver: zodResolver(serviceLogFormSchema),
     defaultValues: {
       clientId,
       type: "Garden",
       description: "",
       date: new Date(),
+      billingType: "monthly",
     }
   });
+
+  const laborSubtotal = laborEntries.reduce((sum, e) => sum + e.cost, 0);
+  const materialsSubtotal = materialEntries.reduce((sum, e) => sum + e.cost, 0);
+  const total = laborSubtotal + materialsSubtotal;
+
+  const addLaborEntry = () => {
+    setLaborEntries([...laborEntries, { workerName: "", hours: 0, hourlyRate: 0, cost: 0 }]);
+  };
+
+  const updateLaborEntry = (index: number, field: keyof LaborEntry, value: string | number) => {
+    const updated = [...laborEntries];
+    if (field === "workerName") {
+      updated[index].workerName = value as string;
+    } else {
+      updated[index][field] = Number(value) || 0;
+    }
+    updated[index].cost = updated[index].hours * updated[index].hourlyRate;
+    setLaborEntries(updated);
+  };
+
+  const removeLaborEntry = (index: number) => {
+    setLaborEntries(laborEntries.filter((_, i) => i !== index));
+  };
+
+  const addMaterialEntry = () => {
+    setMaterialEntries([...materialEntries, { materialName: "", quantity: 0, unitPrice: 0, cost: 0 }]);
+  };
+
+  const updateMaterialEntry = (index: number, field: keyof MaterialEntry, value: string | number) => {
+    const updated = [...materialEntries];
+    if (field === "materialName") {
+      updated[index].materialName = value as string;
+    } else {
+      updated[index][field] = Number(value) || 0;
+    }
+    updated[index].cost = updated[index].quantity * updated[index].unitPrice;
+    setMaterialEntries(updated);
+  };
+
+  const removeMaterialEntry = (index: number) => {
+    setMaterialEntries(materialEntries.filter((_, i) => i !== index));
+  };
 
   const handlePhotoUpload = async (file: File, type: "before" | "after") => {
     const result = await uploadFile(file);
@@ -259,17 +314,21 @@ function AddServiceLogDialog({ clientId }: { clientId: number }) {
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof insertServiceLogSchema>) => {
+  const onSubmit = async (values: z.infer<typeof serviceLogFormSchema>) => {
     try {
       await createLog.mutateAsync({
         ...values,
         photosBefore,
         photosAfter,
+        laborEntries: laborEntries.filter(e => e.workerName && e.hours > 0),
+        materialEntries: materialEntries.filter(e => e.materialName && e.quantity > 0),
       });
       setOpen(false);
       form.reset();
       setPhotosBefore([]);
       setPhotosAfter([]);
+      setLaborEntries([]);
+      setMaterialEntries([]);
     } catch (e) {}
   };
 
@@ -288,7 +347,7 @@ function AddServiceLogDialog({ clientId }: { clientId: number }) {
           <Plus className="w-3 h-3" /> Registar Trabalho
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-2xl sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="rounded-2xl sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registar Serviço</DialogTitle>
         </DialogHeader>
@@ -334,6 +393,145 @@ function AddServiceLogDialog({ clientId }: { clientId: number }) {
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="billingType"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Tipo de Faturação</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className="grid grid-cols-2 gap-3"
+                    >
+                      <div className={`flex items-center space-x-2 rounded-xl border p-3 cursor-pointer transition-colors ${field.value === 'monthly' ? 'border-primary bg-primary/5' : 'bg-background/50'}`}>
+                        <RadioGroupItem value="monthly" id="billing-monthly" />
+                        <Label htmlFor="billing-monthly" className="flex items-center gap-2 cursor-pointer">
+                          <Calendar className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-medium">Mensal</span>
+                        </Label>
+                      </div>
+                      <div className={`flex items-center space-x-2 rounded-xl border p-3 cursor-pointer transition-colors ${field.value === 'extra' ? 'border-primary bg-primary/5' : 'bg-background/50'}`}>
+                        <RadioGroupItem value="extra" id="billing-extra" />
+                        <Label htmlFor="billing-extra" className="flex items-center gap-2 cursor-pointer">
+                          <Euro className="w-4 h-4 text-orange-600" />
+                          <span className="text-sm font-medium">Extra</span>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-3 p-3 rounded-xl border bg-blue-50/50">
+              <div className="flex items-center justify-between">
+                <FormLabel className="flex items-center gap-2 text-blue-700">
+                  <Clock className="w-4 h-4" />
+                  Mão de Obra
+                </FormLabel>
+                <Button type="button" size="sm" variant="outline" onClick={addLaborEntry} className="h-7 text-xs">
+                  <Plus className="w-3 h-3 mr-1" /> Adicionar
+                </Button>
+              </div>
+              {laborEntries.length > 0 && (
+                <div className="space-y-2">
+                  {laborEntries.map((entry, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-1 items-center">
+                      <Input
+                        placeholder="Nome"
+                        value={entry.workerName}
+                        onChange={(e) => updateLaborEntry(idx, "workerName", e.target.value)}
+                        className="col-span-4 h-8 text-xs rounded-lg"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Hrs"
+                        value={entry.hours || ""}
+                        onChange={(e) => updateLaborEntry(idx, "hours", e.target.value)}
+                        className="col-span-2 h-8 text-xs rounded-lg"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="€/h"
+                        value={entry.hourlyRate || ""}
+                        onChange={(e) => updateLaborEntry(idx, "hourlyRate", e.target.value)}
+                        className="col-span-2 h-8 text-xs rounded-lg"
+                      />
+                      <div className="col-span-3 text-xs font-medium text-right">
+                        {entry.cost.toFixed(2)}€
+                      </div>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => removeLaborEntry(idx)} className="col-span-1 h-6 w-6">
+                        <X className="w-3 h-3 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="text-right text-sm font-bold text-blue-700 pt-1 border-t">
+                    Subtotal: {laborSubtotal.toFixed(2)}€
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 p-3 rounded-xl border bg-orange-50/50">
+              <div className="flex items-center justify-between">
+                <FormLabel className="flex items-center gap-2 text-orange-700">
+                  <FolderPlus className="w-4 h-4" />
+                  Materiais
+                </FormLabel>
+                <Button type="button" size="sm" variant="outline" onClick={addMaterialEntry} className="h-7 text-xs">
+                  <Plus className="w-3 h-3 mr-1" /> Adicionar
+                </Button>
+              </div>
+              {materialEntries.length > 0 && (
+                <div className="space-y-2">
+                  {materialEntries.map((entry, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-1 items-center">
+                      <Input
+                        placeholder="Material"
+                        value={entry.materialName}
+                        onChange={(e) => updateMaterialEntry(idx, "materialName", e.target.value)}
+                        className="col-span-4 h-8 text-xs rounded-lg"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Qtd"
+                        value={entry.quantity || ""}
+                        onChange={(e) => updateMaterialEntry(idx, "quantity", e.target.value)}
+                        className="col-span-2 h-8 text-xs rounded-lg"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="€/un"
+                        value={entry.unitPrice || ""}
+                        onChange={(e) => updateMaterialEntry(idx, "unitPrice", e.target.value)}
+                        className="col-span-2 h-8 text-xs rounded-lg"
+                      />
+                      <div className="col-span-3 text-xs font-medium text-right">
+                        {entry.cost.toFixed(2)}€
+                      </div>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => removeMaterialEntry(idx)} className="col-span-1 h-6 w-6">
+                        <X className="w-3 h-3 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="text-right text-sm font-bold text-orange-700 pt-1 border-t">
+                    Subtotal: {materialsSubtotal.toFixed(2)}€
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {(laborEntries.length > 0 || materialEntries.length > 0) && (
+              <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-primary">TOTAL</span>
+                  <span className="text-lg font-bold text-primary">{total.toFixed(2)}€</span>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-3">
               <FormLabel>Fotos Antes</FormLabel>

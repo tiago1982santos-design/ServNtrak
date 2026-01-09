@@ -1,7 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl } from "@shared/routes";
+import { api, createServiceLogWithEntriesInput } from "@shared/routes";
 import { type InsertServiceLog, type ServiceLog } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+
+export type CreateServiceLogWithEntriesInput = z.infer<typeof createServiceLogWithEntriesInput>;
 
 export function useServiceLogs(clientId?: string) {
   return useQuery({
@@ -14,7 +17,18 @@ export function useServiceLogs(clientId?: string) {
       if (!res.ok) throw new Error("Failed to fetch logs");
       return api.serviceLogs.list.responses[200].parse(await res.json());
     },
-    enabled: !!clientId, // Typically only fetch when viewing a specific client
+    enabled: !!clientId,
+  });
+}
+
+export function useUnpaidExtraServices() {
+  return useQuery({
+    queryKey: [api.serviceLogs.unpaid.path],
+    queryFn: async () => {
+      const res = await fetch(api.serviceLogs.unpaid.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch unpaid services");
+      return api.serviceLogs.unpaid.responses[200].parse(await res.json());
+    },
   });
 }
 
@@ -23,7 +37,7 @@ export function useCreateServiceLog() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (data: InsertServiceLog) => {
+    mutationFn: async (data: CreateServiceLogWithEntriesInput) => {
       const res = await fetch(api.serviceLogs.create.path, {
         method: api.serviceLogs.create.method,
         headers: { "Content-Type": "application/json" },
@@ -41,13 +55,38 @@ export function useCreateServiceLog() {
       return api.serviceLogs.create.responses[201].parse(await res.json());
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [api.serviceLogs.list.path, String(variables.clientId)] });
-      // Also invalidate appointments as one might have been marked completed
+      queryClient.invalidateQueries({ queryKey: [api.serviceLogs.list.path, String(variables.clientId)], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: [api.serviceLogs.unpaid.path], refetchType: "all" });
       queryClient.invalidateQueries({ queryKey: [api.appointments.list.path] });
-      toast({ title: "Logged", description: "Service record saved" });
+      toast({ title: "Guardado", description: "Registo de serviço guardado" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useMarkServiceAsPaid() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(api.serviceLogs.markPaid.path.replace(':id', String(id)), {
+        method: api.serviceLogs.markPaid.method,
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to mark as paid");
+      return api.serviceLogs.markPaid.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.serviceLogs.list.path], refetchType: "all" });
+      queryClient.invalidateQueries({ queryKey: [api.serviceLogs.unpaid.path], refetchType: "all" });
+      toast({ title: "Atualizado", description: "Serviço marcado como pago" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
     },
   });
 }

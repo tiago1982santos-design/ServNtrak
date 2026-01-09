@@ -1,8 +1,9 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useAppointments } from "@/hooks/use-appointments";
 import { useReminders } from "@/hooks/use-reminders";
+import { useUnpaidExtraServices, useMarkServiceAsPaid } from "@/hooks/use-service-logs";
 import { format, isToday, isTomorrow, startOfDay, isPast } from "date-fns";
-import { Loader2, CalendarClock, MapPin, CheckCircle2, Bell, Map, Euro } from "lucide-react";
+import { Loader2, CalendarClock, MapPin, CheckCircle2, Bell, Map, Euro, AlertCircle, Banknote } from "lucide-react";
 import { Link } from "wouter";
 import { BottomNav } from "@/components/BottomNav";
 import { CreateClientDialog } from "@/components/CreateClientDialog";
@@ -10,23 +11,26 @@ import { QuickPhotoCaptureButton } from "@/components/QuickPhotoCaptureButton";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   const { user } = useAuth();
   
-  // Stabilize the "from" date so it doesn't change on every render
   const todayStart = useMemo(() => startOfDay(new Date()).toISOString(), []);
   
-  // Get upcoming appointments for dashboard
   const { data: appointments, isLoading } = useAppointments({ 
     from: todayStart 
   });
+  
+  const { data: unpaidServices } = useUnpaidExtraServices();
+  const markAsPaid = useMarkServiceAsPaid();
 
   const userName = user?.firstName || "Jardineiro";
   
-  // Group appointments
   const todayAppointments = appointments?.filter(apt => isToday(new Date(apt.date))) || [];
   const upcomingAppointments = appointments?.filter(apt => !isToday(new Date(apt.date))) || [];
+  
+  const unpaidTotal = unpaidServices?.reduce((sum, s) => sum + (s.totalAmount || 0), 0) || 0;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -120,6 +124,54 @@ export default function Home() {
             </div>
           )}
         </section>
+
+        {unpaidServices && unpaidServices.length > 0 && (
+          <section>
+            <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl p-4 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-white text-sm">Pagamentos Pendentes</h3>
+                  <p className="text-white/90 text-xs mt-0.5">
+                    {unpaidServices.length} serviço{unpaidServices.length > 1 ? 's' : ''} extra{unpaidServices.length > 1 ? 's' : ''} por cobrar
+                  </p>
+                  <p className="text-white font-bold text-lg mt-1">{unpaidTotal.toFixed(2)}€</p>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2 max-h-32 overflow-y-auto">
+                {unpaidServices.slice(0, 3).map((service) => (
+                  <div key={service.id} className="bg-white/10 rounded-xl p-2 flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-medium truncate">{service.clientName}</p>
+                      <p className="text-white/70 text-[10px]">{format(new Date(service.date), "d/MM/yyyy")}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white text-xs font-bold">{(service.totalAmount || 0).toFixed(2)}€</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-7 text-xs"
+                      onClick={() => markAsPaid.mutate(service.id)}
+                      disabled={markAsPaid.isPending}
+                      data-testid={`button-mark-paid-${service.id}`}
+                    >
+                      <Banknote className="w-3 h-3 mr-1" />
+                      Cobrado
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              {unpaidServices.length > 3 && (
+                <Link href="/billing" className="block text-center text-white/90 text-xs mt-2 underline">
+                  Ver todos os {unpaidServices.length} pendentes
+                </Link>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Quick Actions */}
         <section>

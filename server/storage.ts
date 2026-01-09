@@ -1,11 +1,15 @@
 import { db } from "./db";
 import {
   clients, appointments, serviceLogs, reminders, quickPhotos,
+  serviceLogLaborEntries, serviceLogMaterialEntries,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
   type InsertReminder, type Reminder,
-  type InsertQuickPhoto, type QuickPhoto
+  type InsertQuickPhoto, type QuickPhoto,
+  type InsertServiceLogLaborEntry, type ServiceLogLaborEntry,
+  type InsertServiceLogMaterialEntry, type ServiceLogMaterialEntry,
+  type ServiceLogWithEntries
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -25,7 +29,15 @@ export interface IStorage {
 
   // Service Logs
   getServiceLogs(userId: string, clientId?: number): Promise<ServiceLog[]>;
-  createServiceLog(log: InsertServiceLog & { userId: string }): Promise<ServiceLog>;
+  getServiceLogWithEntries(id: number, userId: string): Promise<ServiceLogWithEntries | undefined>;
+  getUnpaidExtraServices(userId: string): Promise<(ServiceLog & { clientName: string })[]>;
+  createServiceLogWithEntries(
+    log: InsertServiceLog & { userId: string },
+    laborEntries: Omit<InsertServiceLogLaborEntry, 'serviceLogId'>[],
+    materialEntries: Omit<InsertServiceLogMaterialEntry, 'serviceLogId'>[]
+  ): Promise<ServiceLogWithEntries>;
+  updateServiceLog(id: number, userId: string, updates: Partial<InsertServiceLog>): Promise<ServiceLog | undefined>;
+  markServiceLogAsPaid(id: number, userId: string): Promise<ServiceLog | undefined>;
   deleteServiceLog(id: number, userId: string): Promise<void>;
 
   // Reminders
@@ -111,12 +123,133 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(serviceLogs.date));
   }
 
-  async createServiceLog(log: InsertServiceLog & { userId: string }): Promise<ServiceLog> {
-    const [newLog] = await db.insert(serviceLogs).values(log).returning();
-    return newLog;
+  async getServiceLogWithEntries(id: number, userId: string): Promise<ServiceLogWithEntries | undefined> {
+    const [log] = await db
+      .select()
+      .from(serviceLogs)
+      .where(and(eq(serviceLogs.id, id), eq(serviceLogs.userId, userId)));
+    
+    if (!log) return undefined;
+
+    const laborEntriesList = await db
+      .select()
+      .from(serviceLogLaborEntries)
+      .where(eq(serviceLogLaborEntries.serviceLogId, id));
+
+    const materialEntriesList = await db
+      .select()
+      .from(serviceLogMaterialEntries)
+      .where(eq(serviceLogMaterialEntries.serviceLogId, id));
+
+    return {
+      ...log,
+      laborEntries: laborEntriesList,
+      materialEntries: materialEntriesList,
+    };
+  }
+
+  async getUnpaidExtraServices(userId: string): Promise<(ServiceLog & { clientName: string })[]> {
+    const result = await db
+      .select({
+        serviceLog: serviceLogs,
+        clientName: clients.name,
+      })
+      .from(serviceLogs)
+      .innerJoin(clients, eq(serviceLogs.clientId, clients.id))
+      .where(and(
+        eq(serviceLogs.userId, userId),
+        eq(serviceLogs.billingType, 'extra'),
+        eq(serviceLogs.isPaymentCollected, false)
+      ))
+      .orderBy(desc(serviceLogs.date));
+    
+    return result.map(r => ({
+      ...r.serviceLog,
+      clientName: r.clientName,
+    }));
+  }
+
+  async createServiceLogWithEntries(
+    log: InsertServiceLog & { userId: string },
+    laborEntries: Omit<InsertServiceLogLaborEntry, 'serviceLogId'>[],
+    materialEntries: Omit<InsertServiceLogMaterialEntry, 'serviceLogId'>[]
+  ): Promise<ServiceLogWithEntries> {
+    // Recalculate costs server-side for data integrity (round to 2 decimal places)
+    const roundToTwo = (n: number) => Math.round(n * 100) / 100;
+    
+    const calculatedLaborEntries = laborEntries.map(entry => ({
+      ...entry,
+      cost: roundToTwo(Number(entry.hours || 0) * Number(entry.hourlyRate || 0)),
+    }));
+    
+    const calculatedMaterialEntries = materialEntries.map(entry => ({
+      ...entry,
+      cost: roundToTwo(Number(entry.quantity || 0) * Number(entry.unitPrice || 0)),
+    }));
+    
+    // Calculate subtotals from recalculated costs (rounded for consistency)
+    const laborSubtotal = roundToTwo(calculatedLaborEntries.reduce((sum, entry) => sum + entry.cost, 0));
+    const materialsSubtotal = roundToTwo(calculatedMaterialEntries.reduce((sum, entry) => sum + entry.cost, 0));
+    const totalAmount = roundToTwo(laborSubtotal + materialsSubtotal);
+
+    // Create service log with calculated totals
+    const [newLog] = await db.insert(serviceLogs).values({
+      ...log,
+      laborSubtotal,
+      materialsSubtotal,
+      totalAmount,
+    }).returning();
+
+    // Insert labor entries with server-calculated costs
+    const createdLaborEntries: ServiceLogLaborEntry[] = [];
+    for (const entry of calculatedLaborEntries) {
+      const [newEntry] = await db.insert(serviceLogLaborEntries).values({
+        ...entry,
+        serviceLogId: newLog.id,
+      }).returning();
+      createdLaborEntries.push(newEntry);
+    }
+
+    // Insert material entries with server-calculated costs
+    const createdMaterialEntries: ServiceLogMaterialEntry[] = [];
+    for (const entry of calculatedMaterialEntries) {
+      const [newEntry] = await db.insert(serviceLogMaterialEntries).values({
+        ...entry,
+        serviceLogId: newLog.id,
+      }).returning();
+      createdMaterialEntries.push(newEntry);
+    }
+
+    return {
+      ...newLog,
+      laborEntries: createdLaborEntries,
+      materialEntries: createdMaterialEntries,
+    };
+  }
+
+  async updateServiceLog(id: number, userId: string, updates: Partial<InsertServiceLog>): Promise<ServiceLog | undefined> {
+    const [updated] = await db
+      .update(serviceLogs)
+      .set(updates)
+      .where(and(eq(serviceLogs.id, id), eq(serviceLogs.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async markServiceLogAsPaid(id: number, userId: string): Promise<ServiceLog | undefined> {
+    const [updated] = await db
+      .update(serviceLogs)
+      .set({ isPaymentCollected: true })
+      .where(and(eq(serviceLogs.id, id), eq(serviceLogs.userId, userId)))
+      .returning();
+    return updated;
   }
 
   async deleteServiceLog(id: number, userId: string): Promise<void> {
+    // Delete related entries first
+    await db.delete(serviceLogLaborEntries).where(eq(serviceLogLaborEntries.serviceLogId, id));
+    await db.delete(serviceLogMaterialEntries).where(eq(serviceLogMaterialEntries.serviceLogId, id));
+    // Then delete the service log
     await db.delete(serviceLogs).where(and(eq(serviceLogs.id, id), eq(serviceLogs.userId, userId)));
   }
 
