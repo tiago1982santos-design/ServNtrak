@@ -41,10 +41,18 @@ export function CreateClientDialog() {
       billingType: "monthly",
       monthlyRate: undefined,
       hourlyRate: undefined,
+      poolLength: undefined,
+      poolWidth: undefined,
+      poolDepth: undefined,
+      jacuzziLength: undefined,
+      jacuzziWidth: undefined,
+      jacuzziDepth: undefined,
     },
   });
 
   const billingType = form.watch("billingType");
+  const hasPool = form.watch("hasPool");
+  const hasJacuzzi = form.watch("hasJacuzzi");
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -189,6 +197,164 @@ export function CreateClientDialog() {
                 />
               </div>
             </div>
+
+            {hasPool && (
+              <div className="space-y-3 pt-2 p-3 rounded-xl border bg-blue-50/50">
+                <FormLabel className="flex items-center gap-2 text-blue-700">
+                  <Waves className="w-4 h-4" />
+                  Dimensões da Piscina (metros)
+                </FormLabel>
+                <div className="grid grid-cols-3 gap-2">
+                  <FormField
+                    control={form.control}
+                    name="poolLength"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Comprimento</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.1"
+                            placeholder="10.0" 
+                            className="rounded-xl"
+                            data-testid="input-pool-length"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="poolWidth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Largura</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.1"
+                            placeholder="5.0" 
+                            className="rounded-xl"
+                            data-testid="input-pool-width"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="poolDepth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Profundidade</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.1"
+                            placeholder="1.5" 
+                            className="rounded-xl"
+                            data-testid="input-pool-depth"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                {form.watch("poolLength") && form.watch("poolWidth") && form.watch("poolDepth") && (
+                  <div className="text-sm text-blue-700 font-medium mt-2">
+                    Volume: {((form.watch("poolLength") || 0) * (form.watch("poolWidth") || 0) * (form.watch("poolDepth") || 0)).toFixed(1)} m³
+                  </div>
+                )}
+              </div>
+            )}
+
+            {hasJacuzzi && (
+              <div className="space-y-3 pt-2 p-3 rounded-xl border bg-orange-50/50">
+                <FormLabel className="flex items-center gap-2 text-orange-700">
+                  <ThermometerSun className="w-4 h-4" />
+                  Dimensões do Jacuzzi (metros)
+                </FormLabel>
+                <div className="grid grid-cols-3 gap-2">
+                  <FormField
+                    control={form.control}
+                    name="jacuzziLength"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Comprimento</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.1"
+                            placeholder="2.0" 
+                            className="rounded-xl"
+                            data-testid="input-jacuzzi-length"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="jacuzziWidth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Largura</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.1"
+                            placeholder="2.0" 
+                            className="rounded-xl"
+                            data-testid="input-jacuzzi-width"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="jacuzziDepth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Profundidade</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.1"
+                            placeholder="0.8" 
+                            className="rounded-xl"
+                            data-testid="input-jacuzzi-depth"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                {form.watch("jacuzziLength") && form.watch("jacuzziWidth") && form.watch("jacuzziDepth") && (
+                  <div className="text-sm text-orange-700 font-medium mt-2">
+                    Volume: {((form.watch("jacuzziLength") || 0) * (form.watch("jacuzziWidth") || 0) * (form.watch("jacuzziDepth") || 0)).toFixed(1)} m³
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-3 pt-2">
               <FormLabel>Tipo de Faturação</FormLabel>

@@ -20,6 +20,14 @@ export const clients = pgTable("clients", {
   hasGarden: boolean("has_garden").default(false),
   hasPool: boolean("has_pool").default(false),
   hasJacuzzi: boolean("has_jacuzzi").default(false),
+  // Pool dimensions in meters
+  poolLength: doublePrecision("pool_length"),
+  poolWidth: doublePrecision("pool_width"),
+  poolDepth: doublePrecision("pool_depth"),
+  // Jacuzzi dimensions in meters
+  jacuzziLength: doublePrecision("jacuzzi_length"),
+  jacuzziWidth: doublePrecision("jacuzzi_width"),
+  jacuzziDepth: doublePrecision("jacuzzi_depth"),
   notes: text("notes"),
   billingType: text("billing_type").default("monthly"), // 'monthly' or 'hourly'
   monthlyRate: doublePrecision("monthly_rate"), // Fixed monthly amount in euros
