@@ -5,6 +5,12 @@ import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -492,6 +498,103 @@ export async function registerRoutes(
     const userId = (req.user as any).claims.sub;
     await storage.deletePurchase(Number(req.params.id), userId);
     res.status(204).end();
+  });
+
+  // --- Document Scanning for Purchases ---
+
+  const extractedPurchaseSchema = z.object({
+    storeName: z.string().optional(),
+    storeNif: z.string().optional(),
+    storeAddress: z.string().optional(),
+    purchaseDate: z.string().optional(),
+    items: z.array(z.object({
+      productName: z.string(),
+      quantity: z.number().default(1),
+      unitPrice: z.number().optional(),
+      totalPrice: z.number(),
+    })).default([]),
+    totalWithoutTax: z.number().optional(),
+    taxAmount: z.number().optional(),
+    grandTotal: z.number().optional(),
+  });
+
+  app.post("/api/scan-document", requireAuth, async (req, res) => {
+    try {
+      const { imageBase64 } = req.body;
+      
+      if (!imageBase64) {
+        return res.status(400).json({ message: "Imagem é obrigatória" });
+      }
+
+      // Call OpenAI Vision to extract text and structured data
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `Você é um assistente especializado em extrair informações de documentos de compra portugueses (faturas, recibos, talões).
+Analise a imagem e extraia as seguintes informações em formato JSON:
+- storeName: nome da loja/fornecedor
+- storeNif: NIF/Contribuinte da loja (9 dígitos)
+- storeAddress: morada da loja
+- purchaseDate: data da compra (formato YYYY-MM-DD)
+- items: lista de produtos com productName, quantity, unitPrice, totalPrice
+- totalWithoutTax: total sem IVA
+- taxAmount: valor do IVA
+- grandTotal: total final com IVA
+
+Responda APENAS com o JSON válido, sem markdown ou explicações.
+Se não conseguir identificar um campo, omita-o ou use null.
+Valores monetários devem ser números (ex: 12.50, não "12,50€").`
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageBase64.startsWith("data:") 
+                    ? imageBase64 
+                    : `data:image/jpeg;base64,${imageBase64}`,
+                },
+              },
+              {
+                type: "text",
+                text: "Por favor, extrai as informações deste documento de compra.",
+              },
+            ],
+          },
+        ],
+        max_tokens: 2000,
+      });
+
+      const content = response.choices[0]?.message?.content || "{}";
+      
+      // Try to parse the JSON response
+      let extractedData;
+      try {
+        // Clean up potential markdown formatting
+        const cleanContent = content
+          .replace(/```json\n?/g, "")
+          .replace(/```\n?/g, "")
+          .trim();
+        extractedData = extractedPurchaseSchema.parse(JSON.parse(cleanContent));
+      } catch (parseError) {
+        console.error("Failed to parse OCR response:", content);
+        return res.status(422).json({ 
+          message: "Não foi possível extrair informações do documento",
+          rawText: content,
+        });
+      }
+
+      res.json({
+        success: true,
+        data: extractedData,
+      });
+    } catch (error) {
+      console.error("Error scanning document:", error);
+      res.status(500).json({ message: "Erro ao processar documento" });
+    }
   });
 
   return httpServer;
