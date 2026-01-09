@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Camera, Check, X, ImagePlus, Trash2, Save, ArrowLeft, FileText } from "lucide-react";
+import { Loader2, Camera, Check, X, ImagePlus, Trash2, ArrowLeft, FileText } from "lucide-react";
 import type { PurchaseCategory, Store } from "@shared/schema";
 
 interface ExtractedItem {
@@ -46,7 +46,6 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
-  const [keepPhoto, setKeepPhoto] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -57,7 +56,6 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
     setSelectedStoreId(null);
     setSelectedCategoryId(null);
     setSelectedItemIndex(0);
-    setKeepPhoto(true);
   }, []);
 
   const handleClose = () => {
@@ -76,12 +74,23 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
       if (result.success && result.data) {
         setExtractedData(result.data);
         
-        const matchedStore = stores.find(s => 
-          s.name.toLowerCase().includes(result.data.storeName?.toLowerCase() || "") ||
-          s.taxId === result.data.storeNif
-        );
-        if (matchedStore) {
-          setSelectedStoreId(matchedStore.id);
+        const extractedStoreName = result.data.storeName?.trim().toLowerCase();
+        const extractedNif = result.data.storeNif?.trim();
+        
+        if (extractedStoreName || extractedNif) {
+          const matchedStore = stores.find(s => {
+            if (extractedNif && s.taxId === extractedNif) {
+              return true;
+            }
+            if (extractedStoreName && extractedStoreName.length >= 3) {
+              return s.name.toLowerCase().includes(extractedStoreName) ||
+                     extractedStoreName.includes(s.name.toLowerCase());
+            }
+            return false;
+          });
+          if (matchedStore) {
+            setSelectedStoreId(matchedStore.id);
+          }
         }
         
         setStep("review");
@@ -415,30 +424,6 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
                     </div>
                   </Card>
                 ))}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Guardar foto do documento?</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={keepPhoto ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setKeepPhoto(true)}
-                  data-testid="button-keep-photo"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Guardar
-                </Button>
-                <Button
-                  variant={!keepPhoto ? "destructive" : "outline"}
-                  className="flex-1"
-                  onClick={() => setKeepPhoto(false)}
-                  data-testid="button-delete-photo"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Eliminar
-                </Button>
               </div>
             </div>
 
