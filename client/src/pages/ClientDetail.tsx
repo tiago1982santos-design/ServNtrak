@@ -5,7 +5,7 @@ import { useServiceLogs, useCreateServiceLog } from "@/hooks/use-service-logs";
 import { useQuickPhotos, useDeleteQuickPhoto } from "@/hooks/use-quick-photos";
 import { useAppointments, useCreateAppointment } from "@/hooks/use-appointments";
 import { useUpload } from "@/hooks/use-upload";
-import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock } from "lucide-react";
+import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -118,35 +118,74 @@ export default function ClientDetail() {
               ))
             )}
 
-            {/* Quick Photos Section */}
+            {/* Quick Photos Section - Organized by Category */}
             {quickPhotos && quickPhotos.length > 0 && (
               <div className="mt-8">
                 <h3 className="font-bold text-lg mb-4">Capturas Rápidas</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  {quickPhotos.map((photo) => (
-                    <div key={photo.id} className="relative group aspect-square">
-                      <img
-                        src={photo.photoUrl}
-                        alt="Captura rápida"
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-white hover:bg-white/20"
-                          onClick={() => deleteQuickPhoto.mutate(photo.id)}
-                          data-testid={`button-delete-quick-photo-${photo.id}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                {(() => {
+                  const grouped = quickPhotos.reduce((acc, photo) => {
+                    const category = photo.serviceType === "Outros" && photo.customCategory 
+                      ? photo.customCategory 
+                      : photo.serviceType || "Geral";
+                    if (!acc[category]) acc[category] = [];
+                    acc[category].push(photo);
+                    return acc;
+                  }, {} as Record<string, typeof quickPhotos>);
+                  
+                  const categoryIcons: Record<string, typeof Flower2> = {
+                    "Jardim": Flower2,
+                    "Piscina": Waves,
+                    "Jacuzzi": Sparkles,
+                    "Outros": FolderPlus,
+                    "Geral": Camera,
+                  };
+                  
+                  const categoryOrder = ["Jardim", "Piscina", "Jacuzzi"];
+                  const sortedCategories = [
+                    ...categoryOrder.filter(c => grouped[c]),
+                    ...Object.keys(grouped).filter(c => !categoryOrder.includes(c) && c !== "Outros" && c !== "Geral"),
+                    ...(grouped["Outros"] ? ["Outros"] : []),
+                    ...(grouped["Geral"] ? ["Geral"] : []),
+                  ];
+                  
+                  return sortedCategories.map((category) => {
+                    const Icon = categoryIcons[category] || FolderPlus;
+                    return (
+                      <div key={category} className="mb-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Icon className="h-4 w-4 text-primary" />
+                          <span className="font-medium text-sm">{category}</span>
+                          <span className="text-xs text-muted-foreground">({grouped[category].length})</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {grouped[category].map((photo) => (
+                            <div key={photo.id} className="relative group aspect-square">
+                              <img
+                                src={photo.photoUrl}
+                                alt={`Captura - ${category}`}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="text-white hover:bg-white/20"
+                                  onClick={() => deleteQuickPhoto.mutate(photo.id)}
+                                  data-testid={`button-delete-quick-photo-${photo.id}`}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="absolute bottom-1 left-1 right-1 text-[10px] text-white bg-black/50 rounded px-1 truncate">
+                                {format(new Date(photo.createdAt!), "dd/MM/yy")}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="absolute bottom-1 left-1 right-1 text-[10px] text-white bg-black/50 rounded px-1 truncate">
-                        {format(new Date(photo.createdAt!), "dd/MM/yy")}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </TabsContent>
