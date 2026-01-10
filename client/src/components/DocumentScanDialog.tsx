@@ -133,18 +133,58 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
     },
   });
 
-  const handleImageCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File, maxWidth = 1600, quality = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedBase64);
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setImageData(base64);
+    try {
       setStep("processing");
-      scanMutation.mutate(base64);
-    };
-    reader.readAsDataURL(file);
+      const compressedBase64 = await compressImage(file);
+      setImageData(compressedBase64);
+      scanMutation.mutate(compressedBase64);
+    } catch (error) {
+      toast({
+        title: "Erro ao processar imagem",
+        description: "Não foi possível carregar a imagem",
+        variant: "destructive",
+      });
+      setStep("capture");
+    }
   };
 
   const handleSaveAll = async () => {
