@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useClients } from "@/hooks/use-clients";
 import { BottomNav } from "@/components/BottomNav";
 import { Link } from "wouter";
-import { Search, MapPin, Leaf, Waves, ThermometerSun, Loader2, Phone, Users, Euro, Clock, ChevronRight, ArrowUpDown } from "lucide-react";
-import type { Client } from "@shared/schema";
+import { Search, MapPin, Leaf, Waves, ThermometerSun, Loader2, Phone, Users, Euro, Clock, ChevronRight, ArrowUpDown, CheckCircle, AlertCircle, Calendar } from "lucide-react";
+import type { Client, ClientPaymentWithClient } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,16 +15,35 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
 type ServiceFilter = "all" | "garden" | "pool" | "jacuzzi";
+type BillingFilter = "all" | "monthly" | "hourly";
 type SortOption = "name" | "value" | "recent";
 
 export default function Clients() {
   const { data: clients, isLoading } = useClients();
   const [search, setSearch] = useState("");
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("all");
+  const [billingFilter, setBillingFilter] = useState<BillingFilter>("all");
   const [sortBy, setSortBy] = useState<SortOption>("name");
+
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  const { data: currentMonthPayments } = useQuery<ClientPaymentWithClient[]>({
+    queryKey: ['/api/client-payments', currentYear.toString(), currentMonth.toString()],
+    queryFn: async () => {
+      const res = await fetch(`/api/client-payments?year=${currentYear}&month=${currentMonth}`, {
+        credentials: "include",
+      });
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   const stats = useMemo(() => {
     if (!clients) return { total: 0, garden: 0, pool: 0, jacuzzi: 0, monthlyRevenue: 0 };
@@ -37,6 +57,21 @@ export default function Clients() {
         .reduce((sum, c) => sum + (c.monthlyRate || 0), 0),
     };
   }, [clients]);
+
+  const paymentStatusMap = useMemo(() => {
+    const map = new Map<number, 'paid' | 'pending' | 'none'>();
+    if (!currentMonthPayments) return map;
+    
+    currentMonthPayments.forEach(payment => {
+      map.set(payment.clientId, payment.isPaid ? 'paid' : 'pending');
+    });
+    return map;
+  }, [currentMonthPayments]);
+
+  const getPaymentStatus = (client: Client): 'paid' | 'pending' | 'none' => {
+    if (client.billingType !== 'monthly') return 'none';
+    return paymentStatusMap.get(client.id) || 'none';
+  };
 
   const filteredAndSortedClients = useMemo(() => {
     let result = clients?.filter(c => 
@@ -53,6 +88,10 @@ export default function Clients() {
       });
     }
 
+    if (billingFilter !== "all") {
+      result = result.filter(c => c.billingType === billingFilter);
+    }
+
     result.sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
       if (sortBy === "value") {
@@ -67,7 +106,7 @@ export default function Clients() {
     });
 
     return result;
-  }, [clients, search, serviceFilter, sortBy]);
+  }, [clients, search, serviceFilter, billingFilter, sortBy]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -163,6 +202,7 @@ export default function Clients() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-xs">Ordenar</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => setSortBy("name")} data-testid="sort-name">
                 Por Nome {sortBy === "name" && "✓"}
               </DropdownMenuItem>
@@ -171,6 +211,19 @@ export default function Clients() {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSortBy("recent")} data-testid="sort-recent">
                 Mais Recentes {sortBy === "recent" && "✓"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs">Faturação</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setBillingFilter("all")} data-testid="billing-all">
+                Todos {billingFilter === "all" && "✓"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBillingFilter("monthly")} data-testid="billing-monthly">
+                <Calendar className="w-3 h-3 mr-2" />
+                Mensal {billingFilter === "monthly" && "✓"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBillingFilter("hourly")} data-testid="billing-hourly">
+                <Clock className="w-3 h-3 mr-2" />
+                Por Hora {billingFilter === "hourly" && "✓"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -188,8 +241,20 @@ export default function Clients() {
               <Card className="hover-elevate cursor-pointer transition-all duration-200" data-testid={`card-client-${client.id}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-primary">{getInitials(client.name)}</span>
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold text-primary">{getInitials(client.name)}</span>
+                      </div>
+                      {getPaymentStatus(client) === 'paid' && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center border-2 border-background" title="Pago este mês">
+                          <CheckCircle className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                      {getPaymentStatus(client) === 'pending' && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center border-2 border-background" title="Pagamento pendente">
+                          <AlertCircle className="w-3 h-3 text-white" />
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex-1 min-w-0">
