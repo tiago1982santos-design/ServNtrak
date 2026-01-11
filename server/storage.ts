@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   clients, appointments, serviceLogs, reminders, quickPhotos,
   serviceLogLaborEntries, serviceLogMaterialEntries,
-  purchaseCategories, stores, purchases,
+  purchaseCategories, stores, purchases, clientPayments,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
@@ -13,7 +13,8 @@ import {
   type ServiceLogWithEntries,
   type InsertPurchaseCategory, type PurchaseCategory,
   type InsertStore, type Store,
-  type InsertPurchase, type Purchase, type PurchaseWithDetails
+  type InsertPurchase, type Purchase, type PurchaseWithDetails,
+  type InsertClientPayment, type ClientPayment, type ClientPaymentWithClient
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -74,6 +75,15 @@ export interface IStorage {
   createPurchase(purchase: InsertPurchase & { userId: string }): Promise<Purchase>;
   updatePurchase(id: number, userId: string, updates: Partial<InsertPurchase>): Promise<Purchase | undefined>;
   deletePurchase(id: number, userId: string): Promise<void>;
+
+  // Client Payments
+  getClientPayments(userId: string, year?: number, month?: number): Promise<ClientPaymentWithClient[]>;
+  getClientPayment(id: number, userId: string): Promise<ClientPayment | undefined>;
+  createClientPayment(payment: InsertClientPayment & { userId: string }): Promise<ClientPayment>;
+  updateClientPayment(id: number, userId: string, updates: Partial<InsertClientPayment>): Promise<ClientPayment | undefined>;
+  markPaymentAsPaid(id: number, userId: string): Promise<ClientPayment | undefined>;
+  deleteClientPayment(id: number, userId: string): Promise<void>;
+  generateMonthlyPayments(userId: string, year: number, month: number): Promise<ClientPayment[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -454,6 +464,96 @@ export class DatabaseStorage implements IStorage {
 
   async deletePurchase(id: number, userId: string): Promise<void> {
     await db.delete(purchases).where(and(eq(purchases.id, id), eq(purchases.userId, userId)));
+  }
+
+  // Client Payments
+  async getClientPayments(userId: string, year?: number, month?: number): Promise<ClientPaymentWithClient[]> {
+    const conditions = [eq(clientPayments.userId, userId)];
+    if (year) conditions.push(eq(clientPayments.year, year));
+    if (month) conditions.push(eq(clientPayments.month, month));
+
+    const result = await db
+      .select({
+        payment: clientPayments,
+        client: clients,
+      })
+      .from(clientPayments)
+      .innerJoin(clients, eq(clientPayments.clientId, clients.id))
+      .where(and(...conditions))
+      .orderBy(desc(clientPayments.year), desc(clientPayments.month), clientPayments.clientId);
+
+    return result.map(r => ({
+      ...r.payment,
+      client: r.client,
+    }));
+  }
+
+  async getClientPayment(id: number, userId: string): Promise<ClientPayment | undefined> {
+    const [payment] = await db
+      .select()
+      .from(clientPayments)
+      .where(and(eq(clientPayments.id, id), eq(clientPayments.userId, userId)));
+    return payment;
+  }
+
+  async createClientPayment(payment: InsertClientPayment & { userId: string }): Promise<ClientPayment> {
+    const [newPayment] = await db.insert(clientPayments).values(payment).returning();
+    return newPayment;
+  }
+
+  async updateClientPayment(id: number, userId: string, updates: Partial<InsertClientPayment>): Promise<ClientPayment | undefined> {
+    const [updated] = await db
+      .update(clientPayments)
+      .set(updates)
+      .where(and(eq(clientPayments.id, id), eq(clientPayments.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async markPaymentAsPaid(id: number, userId: string): Promise<ClientPayment | undefined> {
+    const [updated] = await db
+      .update(clientPayments)
+      .set({ isPaid: true, paidAt: new Date() })
+      .where(and(eq(clientPayments.id, id), eq(clientPayments.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteClientPayment(id: number, userId: string): Promise<void> {
+    await db.delete(clientPayments).where(and(eq(clientPayments.id, id), eq(clientPayments.userId, userId)));
+  }
+
+  async generateMonthlyPayments(userId: string, year: number, month: number): Promise<ClientPayment[]> {
+    const userClients = await this.getClients(userId);
+    const monthlyClients = userClients.filter(c => c.billingType === 'monthly' && c.monthlyRate);
+    
+    const existingPayments = await db
+      .select()
+      .from(clientPayments)
+      .where(and(
+        eq(clientPayments.userId, userId),
+        eq(clientPayments.year, year),
+        eq(clientPayments.month, month)
+      ));
+    
+    const existingClientIds = new Set(existingPayments.map(p => p.clientId));
+    const newPayments: ClientPayment[] = [];
+    
+    for (const client of monthlyClients) {
+      if (!existingClientIds.has(client.id)) {
+        const [payment] = await db.insert(clientPayments).values({
+          userId,
+          clientId: client.id,
+          year,
+          month,
+          amount: client.monthlyRate!,
+          isPaid: false,
+        }).returning();
+        newPayments.push(payment);
+      }
+    }
+    
+    return newPayments;
   }
 }
 

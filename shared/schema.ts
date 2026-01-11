@@ -133,6 +133,20 @@ export const stores = pgTable("stores", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Client monthly payments tracking
+export const clientPayments = pgTable("client_payments", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  clientId: integer("client_id").notNull(),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(), // 1-12
+  amount: doublePrecision("amount").notNull(),
+  isPaid: boolean("is_paid").default(false),
+  paidAt: timestamp("paid_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Purchase records
 export const purchases = pgTable("purchases", {
   id: serial("id").primaryKey(),
@@ -160,6 +174,14 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   serviceLogs: many(serviceLogs),
   reminders: many(reminders),
   quickPhotos: many(quickPhotos),
+  payments: many(clientPayments),
+}));
+
+export const clientPaymentsRelations = relations(clientPayments, ({ one }) => ({
+  client: one(clients, {
+    fields: [clientPayments.clientId],
+    references: [clients.id],
+  }),
 }));
 
 export const quickPhotosRelations = relations(quickPhotos, ({ one }) => ({
@@ -245,6 +267,7 @@ export const insertServiceLogMaterialEntrySchema = createInsertSchema(serviceLog
 export const insertPurchaseCategorySchema = createInsertSchema(purchaseCategories).omit({ id: true, userId: true, createdAt: true });
 export const insertStoreSchema = createInsertSchema(stores).omit({ id: true, userId: true, createdAt: true });
 export const insertPurchaseSchema = createInsertSchema(purchases).omit({ id: true, userId: true, createdAt: true });
+export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit({ id: true, userId: true, createdAt: true });
 
 // === TYPES ===
 
@@ -288,4 +311,12 @@ export type InsertPurchase = z.infer<typeof insertPurchaseSchema>;
 export type PurchaseWithDetails = Purchase & {
   store: Store;
   category: PurchaseCategory;
+};
+
+export type ClientPayment = typeof clientPayments.$inferSelect;
+export type InsertClientPayment = z.infer<typeof insertClientPaymentSchema>;
+
+// Extended type for client payment with client info
+export type ClientPaymentWithClient = ClientPayment & {
+  client: Client;
 };

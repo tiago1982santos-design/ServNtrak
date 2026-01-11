@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, insertQuickPhotoSchema, insertPurchaseCategorySchema, insertStoreSchema, insertPurchaseSchema, clients, appointments, serviceLogs, reminders, quickPhotos, serviceLogLaborEntries, serviceLogMaterialEntries, purchaseCategories, stores, purchases } from './schema';
+import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, insertQuickPhotoSchema, insertPurchaseCategorySchema, insertStoreSchema, insertPurchaseSchema, insertClientPaymentSchema, clients, appointments, serviceLogs, reminders, quickPhotos, serviceLogLaborEntries, serviceLogMaterialEntries, purchaseCategories, stores, purchases, clientPayments } from './schema';
 
 // Robust numeric validator: preprocess to reject NaN/Infinity before coercion
 const safePositiveNumber = (max: number, fieldName: string) =>
@@ -373,6 +373,56 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/purchases/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  clientPayments: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/client-payments',
+      input: z.object({
+        year: z.string().optional(),
+        month: z.string().optional(),
+      }).optional(),
+      responses: {
+        200: z.array(z.custom<typeof clientPayments.$inferSelect & { client: typeof clients.$inferSelect }>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/client-payments',
+      input: insertClientPaymentSchema,
+      responses: {
+        201: z.custom<typeof clientPayments.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    markPaid: {
+      method: 'PUT' as const,
+      path: '/api/client-payments/:id/paid',
+      responses: {
+        200: z.custom<typeof clientPayments.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    generate: {
+      method: 'POST' as const,
+      path: '/api/client-payments/generate',
+      input: z.object({
+        year: z.number(),
+        month: z.number().min(1).max(12),
+      }),
+      responses: {
+        201: z.array(z.custom<typeof clientPayments.$inferSelect>()),
+        400: errorSchemas.validation,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/client-payments/:id',
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,
