@@ -12,6 +12,28 @@ A Peralta Gardens é uma aplicação mobile-first desenvolvida para o Tiago Sant
 - **Estilo de Comunicação**: Simples e direto.
 - **Serviços Atuais**: Jardim, Piscina, Jacuzzi e Geral.
 
+## Scheduling Rules
+
+### Business Hours
+- **Normal Hours**: 8:00-17:00 (Segunda a Sexta)
+- **Lunch Break**: 13:00-14:00
+- **Extended Hours**: Até 18:00 ou 19:00 em dias maiores (requer confirmação)
+- **Saturdays**: 8:00-13:00 ocasionalmente (requer confirmação)
+
+### Visit Frequencies
+- **Jardim (Sazonal)**:
+  - Época Alta (Abril-Setembro): 2 visitas/mês
+  - Época Baixa (Outubro-Março): 1 visita/mês
+- **Jardim (Acordo Especial)**: 1 visita/mês todo o ano
+- **Piscina/Jacuzzi**:
+  - Época Alta: 1 visita/semana (4/mês)
+  - Época Baixa: 2 visitas/mês
+
+### Confirmation Required
+- Agendamentos fora do horário normal (18:00-19:00)
+- Agendamentos aos Sábados
+- Reagendamentos de trabalhos não concretizados
+
 ## System Architecture
 
 ### Frontend Architecture

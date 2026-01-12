@@ -1,5 +1,65 @@
 import type { Client } from "./schema";
 
+// === BUSINESS HOURS CONFIGURATION ===
+export const BUSINESS_HOURS = {
+  // Normal working hours (Monday-Friday)
+  normalStart: 8, // 8:00
+  normalEnd: 17,  // 17:00
+  
+  // Lunch break
+  lunchStart: 13, // 13:00
+  lunchEnd: 14,   // 14:00
+  
+  // Extended hours (requires confirmation)
+  extendedEnd: 19, // Up to 19:00 on longer days
+  
+  // Saturday hours (requires confirmation)
+  saturdayStart: 8,  // 8:00
+  saturdayEnd: 13,   // 13:00
+  
+  // Working days (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  workDays: [1, 2, 3, 4, 5] as number[], // Monday to Friday
+};
+
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export function isWorkDay(date: Date): boolean {
+  return BUSINESS_HOURS.workDays.includes(date.getDay());
+}
+
+export function isWithinBusinessHours(date: Date): boolean {
+  const hour = date.getHours();
+  const isLunchTime = hour >= BUSINESS_HOURS.lunchStart && hour < BUSINESS_HOURS.lunchEnd;
+  const isWorkHour = hour >= BUSINESS_HOURS.normalStart && hour < BUSINESS_HOURS.normalEnd;
+  return isWorkDay(date) && isWorkHour && !isLunchTime;
+}
+
+export function requiresConfirmation(date: Date): { required: boolean; reason?: string } {
+  const dayOfWeek = date.getDay();
+  const hour = date.getHours();
+  
+  // Saturday work requires confirmation
+  if (dayOfWeek === 6) {
+    return { required: true, reason: "Trabalho ao Sábado" };
+  }
+  
+  // Extended hours (after 17:00) require confirmation
+  if (hour >= BUSINESS_HOURS.normalEnd && hour < BUSINESS_HOURS.extendedEnd) {
+    return { required: true, reason: "Horário prolongado" };
+  }
+  
+  return { required: false };
+}
+
+export function getNextWorkDay(date: Date): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + 1);
+  while (!isWorkDay(next)) {
+    next.setDate(next.getDate() + 1);
+  }
+  return next;
+}
+
 export type Season = "high" | "low";
 
 export function getSeason(date: Date): Season {
@@ -107,6 +167,15 @@ export function getTotalMonthlyVisits(client: Client, date: Date = new Date()): 
   return schedules.reduce((total, schedule) => total + schedule.visitsPerMonth, 0);
 }
 
+function adjustToWorkDay(date: Date): Date {
+  const adjusted = new Date(date);
+  // If it's a weekend, move to Monday
+  while (!isWorkDay(adjusted)) {
+    adjusted.setDate(adjusted.getDate() + 1);
+  }
+  return adjusted;
+}
+
 export function generateSuggestedDates(
   year: number,
   month: number, // 1-12
@@ -118,25 +187,33 @@ export function generateSuggestedDates(
   
   if (visitsPerMonth <= 0) return dates;
   
+  // Target days in the month, then adjust to work days
+  let targetDays: number[] = [];
+  
   if (visitsPerMonth === 1) {
     // Middle of the month
-    dates.push(new Date(year, month - 1, 15));
+    targetDays = [15];
   } else if (visitsPerMonth === 2) {
     // Every 2 weeks: around 7th and 21st
-    dates.push(new Date(year, month - 1, 7));
-    dates.push(new Date(year, month - 1, 21));
+    targetDays = [7, 21];
   } else if (visitsPerMonth === 4) {
     // Weekly: around 1st, 8th, 15th, 22nd
-    dates.push(new Date(year, month - 1, 1));
-    dates.push(new Date(year, month - 1, 8));
-    dates.push(new Date(year, month - 1, 15));
-    dates.push(new Date(year, month - 1, 22));
+    targetDays = [1, 8, 15, 22];
   } else {
     // Distribute evenly
     const interval = Math.floor(daysInMonth / visitsPerMonth);
     for (let i = 0; i < visitsPerMonth; i++) {
-      const day = Math.min(1 + i * interval, daysInMonth);
-      dates.push(new Date(year, month - 1, day));
+      targetDays.push(Math.min(1 + i * interval, daysInMonth));
+    }
+  }
+  
+  // Convert to dates and adjust to work days
+  for (const day of targetDays) {
+    const targetDate = new Date(year, month - 1, day, BUSINESS_HOURS.normalStart, 0, 0);
+    const adjustedDate = adjustToWorkDay(targetDate);
+    // Ensure we don't go past the month
+    if (adjustedDate.getMonth() === month - 1) {
+      dates.push(adjustedDate);
     }
   }
   
