@@ -3,9 +3,10 @@ import { useParams, Link } from "wouter";
 import { useClient, useUpdateClient } from "@/hooks/use-clients";
 import { useServiceLogs, useCreateServiceLog } from "@/hooks/use-service-logs";
 import { useQuickPhotos, useDeleteQuickPhoto } from "@/hooks/use-quick-photos";
-import { useAppointments, useCreateAppointment } from "@/hooks/use-appointments";
+import { useAppointments, useCreateAppointment, useUpdateAppointment } from "@/hooks/use-appointments";
+import { useClientServiceStats, useCreateServiceVisit } from "@/hooks/use-service-visits";
 import { useUpload } from "@/hooks/use-upload";
-import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus } from "lucide-react";
+import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus, Users, Timer, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -31,6 +32,7 @@ export default function ClientDetail() {
   const { data: logs } = useServiceLogs(id);
   const { data: appointments } = useAppointments({ clientId: id });
   const { data: quickPhotos } = useQuickPhotos(id);
+  const { data: serviceStats } = useClientServiceStats(clientId);
   const deleteQuickPhoto = useDeleteQuickPhoto();
 
   if (isLoading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin text-primary" /></div>;
@@ -123,6 +125,53 @@ export default function ClientDetail() {
               <div className="pt-2 mt-2 border-t flex justify-between text-sm font-medium">
                 <span>Total este mês:</span>
                 <span className="text-primary">{getTotalMonthlyVisits(client)} visitas</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Service Statistics */}
+      {serviceStats && serviceStats.totalVisits > 0 && (
+        <div className="px-6 mt-4">
+          <div className="bg-card rounded-xl p-4 border border-border/50">
+            <h3 className="font-semibold text-sm mb-3">Estatísticas de Visitas</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total visitas</p>
+                  <p className="font-semibold">{serviceStats.totalVisits}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <Timer className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Duração média</p>
+                  <p className="font-semibold">{serviceStats.averageDurationMinutes} min</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Users className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Média trabalhadores</p>
+                  <p className="font-semibold">{serviceStats.averageWorkerCount.toFixed(1)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total horas</p>
+                  <p className="font-semibold">{serviceStats.totalWorkerHours.toFixed(1)}h</p>
+                </div>
               </div>
             </div>
           </div>
@@ -252,6 +301,12 @@ export default function ClientDetail() {
                     <h4 className="font-semibold text-foreground">Serviço de {apt.type === 'Garden' ? 'Jardim' : apt.type === 'Pool' ? 'Piscina' : apt.type}</h4>
                     <p className="text-sm text-muted-foreground">{format(new Date(apt.date), "HH:mm")}</p>
                   </div>
+                  <CompleteVisitDialog 
+                    clientId={clientId} 
+                    appointmentId={apt.id}
+                    appointmentType={apt.type}
+                    estimatedDuration={client.serviceDurationMinutes || 60}
+                  />
                 </div>
               ))
             )}
@@ -1242,6 +1297,240 @@ function EditClientDialog({ client }: { client: Client }) {
             
             <Button type="submit" className="w-full btn-primary" disabled={updateClient.isPending}>
               {updateClient.isPending ? "A guardar..." : "Guardar Alterações"}
+            </Button>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const completeVisitFormSchema = z.object({
+  actualDurationMinutes: z.number().min(5, "Mínimo 5 minutos").max(600, "Máximo 10 horas"),
+  workerCount: z.number().min(1, "Mínimo 1 trabalhador").max(10, "Máximo 10 trabalhadores"),
+  notes: z.string().optional(),
+  includeGarden: z.boolean().default(false),
+  includePool: z.boolean().default(false),
+  includeJacuzzi: z.boolean().default(false),
+});
+
+function CompleteVisitDialog({ 
+  clientId, 
+  appointmentId, 
+  appointmentType,
+  estimatedDuration 
+}: { 
+  clientId: number; 
+  appointmentId: number;
+  appointmentType: string;
+  estimatedDuration: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const createServiceVisit = useCreateServiceVisit();
+  const updateAppointment = useUpdateAppointment();
+  const { data: client } = useClient(clientId);
+
+  const form = useForm<z.infer<typeof completeVisitFormSchema>>({
+    resolver: zodResolver(completeVisitFormSchema),
+    defaultValues: {
+      actualDurationMinutes: estimatedDuration,
+      workerCount: 1,
+      notes: "",
+      includeGarden: appointmentType === "Garden",
+      includePool: appointmentType === "Pool",
+      includeJacuzzi: appointmentType === "Jacuzzi",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof completeVisitFormSchema>) {
+    try {
+      const services: { serviceType: string; wasPlanned: boolean }[] = [];
+      if (values.includeGarden) services.push({ serviceType: "Garden", wasPlanned: appointmentType === "Garden" });
+      if (values.includePool) services.push({ serviceType: "Pool", wasPlanned: appointmentType === "Pool" });
+      if (values.includeJacuzzi) services.push({ serviceType: "Jacuzzi", wasPlanned: appointmentType === "Jacuzzi" });
+
+      if (services.length === 0) {
+        services.push({ serviceType: appointmentType, wasPlanned: true });
+      }
+
+      await createServiceVisit.mutateAsync({
+        visit: {
+          clientId,
+          visitDate: new Date(),
+          actualDurationMinutes: values.actualDurationMinutes,
+          workerCount: values.workerCount,
+          notes: values.notes,
+        },
+        services,
+      });
+
+      await updateAppointment.mutateAsync({
+        id: appointmentId,
+        isCompleted: true,
+      });
+
+      setOpen(false);
+      form.reset();
+    } catch (error) {
+      // Error handled by hook
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="icon" variant="ghost" className="shrink-0" data-testid={`button-complete-visit-${appointmentId}`}>
+          <Check className="w-5 h-5 text-green-600" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-display text-primary">Confirmar Visita</DialogTitle>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="actualDurationMinutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Timer className="w-4 h-4" /> Duração Real
+                  </FormLabel>
+                  <FormControl>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="number" 
+                        min="5"
+                        step="5"
+                        className="rounded-xl w-24"
+                        data-testid="input-actual-duration"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      />
+                      <span className="text-sm text-muted-foreground">minutos</span>
+                    </div>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="workerCount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-2">
+                    <Users className="w-4 h-4" /> Nº de Trabalhadores
+                  </FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="1"
+                      max="10"
+                      className="rounded-xl w-24"
+                      data-testid="input-worker-count"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-2">
+              <FormLabel>Serviços Realizados</FormLabel>
+              <div className="flex flex-wrap gap-3">
+                {client?.hasGarden && (
+                  <FormField
+                    control={form.control}
+                    name="includeGarden"
+                    render={({ field }) => (
+                      <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${field.value ? 'bg-green-50 border-green-300' : 'bg-background'}`}>
+                        <Checkbox 
+                          checked={field.value} 
+                          onCheckedChange={field.onChange}
+                          data-testid="checkbox-include-garden"
+                        />
+                        <Leaf className="w-4 h-4 text-green-600" />
+                        <span className="text-sm">Jardim</span>
+                      </label>
+                    )}
+                  />
+                )}
+                {client?.hasPool && (
+                  <FormField
+                    control={form.control}
+                    name="includePool"
+                    render={({ field }) => (
+                      <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${field.value ? 'bg-blue-50 border-blue-300' : 'bg-background'}`}>
+                        <Checkbox 
+                          checked={field.value} 
+                          onCheckedChange={field.onChange}
+                          data-testid="checkbox-include-pool"
+                        />
+                        <Waves className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm">Piscina</span>
+                      </label>
+                    )}
+                  />
+                )}
+                {client?.hasJacuzzi && (
+                  <FormField
+                    control={form.control}
+                    name="includeJacuzzi"
+                    render={({ field }) => (
+                      <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${field.value ? 'bg-orange-50 border-orange-300' : 'bg-background'}`}>
+                        <Checkbox 
+                          checked={field.value} 
+                          onCheckedChange={field.onChange}
+                          data-testid="checkbox-include-jacuzzi"
+                        />
+                        <ThermometerSun className="w-4 h-4 text-orange-600" />
+                        <span className="text-sm">Jacuzzi</span>
+                      </label>
+                    )}
+                  />
+                )}
+              </div>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notas (opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Observações sobre a visita..."
+                      className="rounded-xl resize-none"
+                      data-testid="input-visit-notes"
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <Button 
+              type="submit" 
+              className="w-full btn-primary" 
+              disabled={createServiceVisit.isPending}
+              data-testid="button-submit-visit"
+            >
+              {createServiceVisit.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  A registar...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 mr-2" />
+                  Confirmar Visita
+                </>
+              )}
             </Button>
           </form>
         </Form>
