@@ -34,6 +34,15 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/') || new Response('Offline', { status: 503 });
+      })
+    );
+    return;
+  }
   
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
