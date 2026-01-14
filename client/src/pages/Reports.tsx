@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, isWithinInterval } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useState, useMemo } from "react";
-import type { Client, ServiceLog, PurchaseWithDetails, PurchaseCategory } from "@shared/schema";
+import type { Client, ServiceLog, PurchaseWithDetails, PurchaseCategory, ClientPayment } from "@shared/schema";
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
 
@@ -38,7 +38,23 @@ export default function Reports() {
     queryKey: ['/api/purchase-categories'],
   });
 
-  const isLoading = clientsLoading || serviceLogsLoading || purchasesLoading;
+  const { data: allPayments, isLoading: paymentsLoading } = useQuery<ClientPayment[]>({
+    queryKey: ['/api/client-payments', 'year-summary', selectedYear],
+    queryFn: async () => {
+      const year = parseInt(selectedYear);
+      const promises = [];
+      for (let month = 1; month <= 12; month++) {
+        promises.push(
+          fetch(`/api/client-payments?year=${year}&month=${month}`, { credentials: "include" })
+            .then(res => res.ok ? res.json() : [])
+        );
+      }
+      const results = await Promise.all(promises);
+      return results.flat();
+    },
+  });
+
+  const isLoading = clientsLoading || serviceLogsLoading || purchasesLoading || paymentsLoading;
 
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -56,10 +72,6 @@ export default function Reports() {
     const monthlyData: { month: string; receitas: number; despesas: number; lucro: number }[] = [];
     const servicesByType: Record<string, number> = {};
     const purchasesByCategory: Record<string, number> = {};
-
-    const monthlyRevenue = clients
-      .filter(c => c.billingType === 'monthly' && c.monthlyRate)
-      .reduce((sum, c) => sum + (c.monthlyRate || 0), 0);
 
     const maxMonth = year < currentYear ? 11 : (year === currentYear ? currentMonth : -1);
 
@@ -80,11 +92,15 @@ export default function Reports() {
         return isWithinInterval(serviceDate, { start: monthStart, end: monthEnd });
       });
 
+      const paidMonthlyRevenue = (allPayments || [])
+        .filter(p => p.year === year && p.month === month + 1 && p.isPaid)
+        .reduce((sum, p) => sum + p.amount, 0);
+
       const extraRevenue = monthServices
         .filter(s => s.billingType === 'extra')
         .reduce((sum, s) => sum + (s.totalAmount || 0), 0);
 
-      const totalRevenue = monthlyRevenue + extraRevenue;
+      const totalRevenue = paidMonthlyRevenue + extraRevenue;
 
       monthlyData.push({
         month: monthName,
@@ -133,7 +149,7 @@ export default function Reports() {
       totalServicos,
       totalClientes: clients.length,
     };
-  }, [clients, serviceLogs, purchases, selectedYear]);
+  }, [clients, serviceLogs, purchases, allPayments, selectedYear]);
 
   if (isLoading) {
     return (
