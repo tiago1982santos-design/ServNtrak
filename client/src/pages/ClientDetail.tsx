@@ -6,7 +6,8 @@ import { useQuickPhotos, useDeleteQuickPhoto } from "@/hooks/use-quick-photos";
 import { useAppointments, useCreateAppointment, useUpdateAppointment } from "@/hooks/use-appointments";
 import { useClientServiceStats, useCreateServiceVisit } from "@/hooks/use-service-visits";
 import { useUpload } from "@/hooks/use-upload";
-import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus, Users, Timer, Check } from "lucide-react";
+import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus, Users, Timer, Check, MessageCircle } from "lucide-react";
+import { SiWhatsapp, SiFacebook } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -66,6 +67,46 @@ export default function ClientDetail() {
               </div>
             )}
           </div>
+
+          {/* Messaging Buttons */}
+          {(client.phone || client.whatsapp || client.facebookMessenger) && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {(client.whatsapp || client.phone) && (
+                <a
+                  href={`https://wa.me/${(client.whatsapp || client.phone || '').replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-[#25D366] text-white rounded-lg text-sm font-medium hover:bg-[#20bd5a] transition-colors"
+                  data-testid="button-whatsapp"
+                >
+                  <SiWhatsapp className="w-4 h-4" />
+                  WhatsApp
+                </a>
+              )}
+              {client.phone && (
+                <a
+                  href={`sms:${client.phone}`}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                  data-testid="button-sms"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  SMS
+                </a>
+              )}
+              {client.facebookMessenger && (
+                <a
+                  href={`https://m.me/${client.facebookMessenger}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-[#0084FF] text-white rounded-lg text-sm font-medium hover:bg-[#0073e6] transition-colors"
+                  data-testid="button-messenger"
+                >
+                  <SiFacebook className="w-4 h-4" />
+                  Messenger
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

@@ -15,6 +15,8 @@ export const clients = pgTable("clients", {
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
+  whatsapp: text("whatsapp"), // WhatsApp number (can be different from phone)
+  facebookMessenger: text("facebook_messenger"), // Facebook Messenger username or profile ID
   address: text("address"),
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),
