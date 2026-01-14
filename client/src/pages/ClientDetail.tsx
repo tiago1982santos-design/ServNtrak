@@ -857,6 +857,8 @@ function EditClientDialog({ client }: { client: Client }) {
     defaultValues: {
       name: client.name,
       phone: client.phone || "",
+      whatsapp: client.whatsapp || "",
+      facebookMessenger: client.facebookMessenger || "",
       address: client.address || "",
       latitude: client.latitude || undefined,
       longitude: client.longitude || undefined,
@@ -929,6 +931,32 @@ function EditClientDialog({ client }: { client: Client }) {
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
                     <Input placeholder="912 345 678" className="rounded-xl" data-testid="input-client-phone" {...field} value={field.value || ""} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="whatsapp"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>WhatsApp (se diferente do telefone)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="+351 912 345 678" className="rounded-xl" data-testid="input-client-whatsapp" {...field} value={field.value || ""} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="facebookMessenger"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Facebook Messenger (username)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="username ou ID" className="rounded-xl" data-testid="input-client-messenger" {...field} value={field.value || ""} />
                   </FormControl>
                 </FormItem>
               )}
