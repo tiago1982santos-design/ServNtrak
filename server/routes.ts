@@ -690,5 +690,73 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
     res.json(stats);
   });
 
+  // --- Financial Config ---
+
+  app.get(api.financialConfig.get.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const config = await storage.getFinancialConfig(userId);
+    res.json(config || null);
+  });
+
+  app.put(api.financialConfig.update.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.financialConfig.update.input.parse(req.body);
+      const userId = (req.user as any).claims.sub;
+      const config = await storage.createOrUpdateFinancialConfig(userId, input);
+      res.json(config);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
+  // --- Monthly Distributions ---
+
+  app.get(api.monthlyDistributions.list.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const year = req.query.year ? Number(req.query.year) : undefined;
+    const distributions = await storage.getMonthlyDistributions(userId, year);
+    res.json(distributions);
+  });
+
+  app.get(api.monthlyDistributions.get.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const year = Number(req.params.year);
+    const month = Number(req.params.month);
+    const distribution = await storage.getMonthlyDistribution(userId, year, month);
+    res.json(distribution || null);
+  });
+
+  app.post(api.monthlyDistributions.calculate.path, requireAuth, async (req, res) => {
+    const userId = (req.user as any).claims.sub;
+    const year = Number(req.params.year);
+    const month = Number(req.params.month);
+    const distribution = await storage.calculateAndSaveDistribution(userId, year, month);
+    res.json(distribution);
+  });
+
+  app.put(api.monthlyDistributions.update.path, requireAuth, async (req, res) => {
+    try {
+      const input = api.monthlyDistributions.update.input.parse(req.body);
+      const userId = (req.user as any).claims.sub;
+      const updated = await storage.updateMonthlyDistribution(Number(req.params.id), userId, input);
+      if (!updated) return res.status(404).json({ message: "Distribuição não encontrada" });
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
+
   return httpServer;
 }

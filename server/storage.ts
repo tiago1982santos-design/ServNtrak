@@ -4,6 +4,7 @@ import {
   serviceLogLaborEntries, serviceLogMaterialEntries,
   purchaseCategories, stores, purchases, clientPayments,
   serviceVisits, serviceVisitServices,
+  financialConfig, monthlyDistributions,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
@@ -18,7 +19,9 @@ import {
   type InsertClientPayment, type ClientPayment, type ClientPaymentWithClient,
   type InsertServiceVisit, type ServiceVisit, type ServiceVisitWithServices,
   type InsertServiceVisitService, type ServiceVisitService,
-  type ClientServiceStats
+  type ClientServiceStats,
+  type InsertFinancialConfig, type FinancialConfig,
+  type InsertMonthlyDistribution, type MonthlyDistribution
 } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
@@ -96,6 +99,16 @@ export interface IStorage {
     services: Omit<InsertServiceVisitService, 'visitId'>[]
   ): Promise<ServiceVisitWithServices>;
   getClientServiceStats(userId: string, clientId: number): Promise<ClientServiceStats | undefined>;
+
+  // Financial Config
+  getFinancialConfig(userId: string): Promise<FinancialConfig | undefined>;
+  createOrUpdateFinancialConfig(userId: string, config: InsertFinancialConfig): Promise<FinancialConfig>;
+
+  // Monthly Distributions
+  getMonthlyDistributions(userId: string, year?: number): Promise<MonthlyDistribution[]>;
+  getMonthlyDistribution(userId: string, year: number, month: number): Promise<MonthlyDistribution | undefined>;
+  calculateAndSaveDistribution(userId: string, year: number, month: number): Promise<MonthlyDistribution>;
+  updateMonthlyDistribution(id: number, userId: string, updates: Partial<InsertMonthlyDistribution>): Promise<MonthlyDistribution | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -651,6 +664,124 @@ export class DatabaseStorage implements IStorage {
       totalWorkerHours: Math.round(totalWorkerHours * 10) / 10,
       serviceBreakdown,
     };
+  }
+
+  // Financial Config
+  async getFinancialConfig(userId: string): Promise<FinancialConfig | undefined> {
+    const [config] = await db
+      .select()
+      .from(financialConfig)
+      .where(and(eq(financialConfig.userId, userId), eq(financialConfig.isActive, true)));
+    return config;
+  }
+
+  async createOrUpdateFinancialConfig(userId: string, config: InsertFinancialConfig): Promise<FinancialConfig> {
+    const existing = await this.getFinancialConfig(userId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(financialConfig)
+        .set({ ...config, updatedAt: new Date() })
+        .where(eq(financialConfig.id, existing.id))
+        .returning();
+      return updated;
+    }
+    
+    const [newConfig] = await db
+      .insert(financialConfig)
+      .values({ ...config, userId })
+      .returning();
+    return newConfig;
+  }
+
+  // Monthly Distributions
+  async getMonthlyDistributions(userId: string, year?: number): Promise<MonthlyDistribution[]> {
+    if (year) {
+      return await db
+        .select()
+        .from(monthlyDistributions)
+        .where(and(eq(monthlyDistributions.userId, userId), eq(monthlyDistributions.year, year)))
+        .orderBy(desc(monthlyDistributions.month));
+    }
+    return await db
+      .select()
+      .from(monthlyDistributions)
+      .where(eq(monthlyDistributions.userId, userId))
+      .orderBy(desc(monthlyDistributions.year), desc(monthlyDistributions.month));
+  }
+
+  async getMonthlyDistribution(userId: string, year: number, month: number): Promise<MonthlyDistribution | undefined> {
+    const [dist] = await db
+      .select()
+      .from(monthlyDistributions)
+      .where(and(
+        eq(monthlyDistributions.userId, userId),
+        eq(monthlyDistributions.year, year),
+        eq(monthlyDistributions.month, month)
+      ));
+    return dist;
+  }
+
+  async calculateAndSaveDistribution(userId: string, year: number, month: number): Promise<MonthlyDistribution> {
+    // Get current financial config
+    const config = await this.getFinancialConfig(userId);
+    const salaryPercentage = config?.salaryPercentage ?? 40;
+    const companyPercentage = config?.companyPercentage ?? 60;
+
+    // Get all paid payments for the month
+    const payments = await this.getClientPayments(userId, year, month);
+    const paidPayments = payments.filter(p => p.isPaid);
+    const totalReceived = paidPayments.reduce((sum, p) => sum + p.amount, 0);
+
+    // Calculate distribution
+    const salaryAmount = Math.round((totalReceived * salaryPercentage / 100) * 100) / 100;
+    const companyAmount = Math.round((totalReceived * companyPercentage / 100) * 100) / 100;
+
+    // Check if distribution already exists
+    const existing = await this.getMonthlyDistribution(userId, year, month);
+
+    if (existing) {
+      // Only update if not locked
+      if (!existing.isLocked) {
+        const [updated] = await db
+          .update(monthlyDistributions)
+          .set({
+            totalReceived,
+            salaryAmount,
+            companyAmount,
+            salaryPercentageUsed: salaryPercentage,
+            updatedAt: new Date()
+          })
+          .where(eq(monthlyDistributions.id, existing.id))
+          .returning();
+        return updated;
+      }
+      return existing;
+    }
+
+    // Create new distribution
+    const [newDist] = await db
+      .insert(monthlyDistributions)
+      .values({
+        userId,
+        year,
+        month,
+        totalReceived,
+        salaryAmount,
+        companyAmount,
+        salaryPercentageUsed: salaryPercentage
+      })
+      .returning();
+    return newDist;
+  }
+
+  async updateMonthlyDistribution(id: number, userId: string, updates: Partial<InsertMonthlyDistribution>): Promise<MonthlyDistribution | undefined> {
+    const [updated] = await db
+      .update(monthlyDistributions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(monthlyDistributions.id, id), eq(monthlyDistributions.userId, userId)))
+      .returning();
+    return updated;
   }
 }
 

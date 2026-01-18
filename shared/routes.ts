@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, insertQuickPhotoSchema, insertPurchaseCategorySchema, insertStoreSchema, insertPurchaseSchema, insertClientPaymentSchema, insertServiceVisitSchema, clients, appointments, serviceLogs, reminders, quickPhotos, serviceLogLaborEntries, serviceLogMaterialEntries, purchaseCategories, stores, purchases, clientPayments, serviceVisits, serviceVisitServices } from './schema';
+import { insertClientSchema, insertAppointmentSchema, insertServiceLogSchema, insertReminderSchema, insertQuickPhotoSchema, insertPurchaseCategorySchema, insertStoreSchema, insertPurchaseSchema, insertClientPaymentSchema, insertServiceVisitSchema, insertFinancialConfigSchema, insertMonthlyDistributionSchema, clients, appointments, serviceLogs, reminders, quickPhotos, serviceLogLaborEntries, serviceLogMaterialEntries, purchaseCategories, stores, purchases, clientPayments, serviceVisits, serviceVisitServices, financialConfig, monthlyDistributions } from './schema';
 
 // Robust numeric validator: preprocess to reject NaN/Infinity before coercion
 const safePositiveNumber = (max: number, fieldName: string) =>
@@ -468,6 +468,60 @@ export const api = {
           totalWorkerHours: z.number(),
           serviceBreakdown: z.record(z.string(), z.number()),
         }).nullable(),
+      },
+    },
+  },
+  financialConfig: {
+    get: {
+      method: 'GET' as const,
+      path: '/api/financial-config',
+      responses: {
+        200: z.custom<typeof financialConfig.$inferSelect>().nullable(),
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/financial-config',
+      input: insertFinancialConfigSchema,
+      responses: {
+        200: z.custom<typeof financialConfig.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+  },
+  monthlyDistributions: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/monthly-distributions',
+      query: z.object({
+        year: z.string().optional(),
+      }).optional(),
+      responses: {
+        200: z.array(z.custom<typeof monthlyDistributions.$inferSelect>()),
+      },
+    },
+    get: {
+      method: 'GET' as const,
+      path: '/api/monthly-distributions/:year/:month',
+      responses: {
+        200: z.custom<typeof monthlyDistributions.$inferSelect>().nullable(),
+      },
+    },
+    calculate: {
+      method: 'POST' as const,
+      path: '/api/monthly-distributions/:year/:month/calculate',
+      responses: {
+        200: z.custom<typeof monthlyDistributions.$inferSelect>(),
+      },
+    },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/monthly-distributions/:id',
+      input: insertMonthlyDistributionSchema.partial(),
+      responses: {
+        200: z.custom<typeof monthlyDistributions.$inferSelect>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
       },
     },
   },
