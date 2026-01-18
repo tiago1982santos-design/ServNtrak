@@ -89,6 +89,8 @@ A Peralta Gardens é uma aplicação mobile-first desenvolvida para o Tiago Sant
 - `react-day-picker` / `date-fns` - Calendar functionality
 - `@tanstack/react-query` - Data fetching and caching
 - `zod` / `drizzle-zod` - Runtime validation and type generation
+- `jspdf` / `jspdf-autotable` - PDF generation for exports
+- `xlsx` - Excel file generation for exports
 
 ### UI Framework Dependencies
 - Full shadcn/ui component library (accordion, dialog, form, etc.)
