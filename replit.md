@@ -108,3 +108,27 @@ A Peralta Gardens é uma aplicação mobile-first desenvolvida para o Tiago Sant
 - Radix UI primitives for accessible components
 - Lucide React for icons
 - Tailwind CSS for styling
+
+## Ideias para a Comercialização da App
+
+### Funcionalidades a Desenvolver
+- **Multi-utilizador**: Adaptar a aplicação para suportar várias empresas independentes
+- **Planos de Subscrição**: Definir funcionalidades por nível (básico, profissional, empresarial)
+- **Dashboard de Administração**: Painel para gestão de contas e métricas de uso
+- **Integração com Pagamentos**: Sistema de subscrições (Stripe, etc.)
+
+### Requisitos Legais e Compliance
+- **Política de Privacidade**: Documento detalhado sobre tratamento de dados
+- **Termos de Serviço**: Condições de utilização da plataforma
+- **RGPD**: Conformidade com regulamentação europeia de proteção de dados
+- **Faturação**: Emissão de faturas para clientes empresariais
+
+### Suporte e Documentação
+- **Centro de Ajuda**: Documentação para utilizadores
+- **Suporte ao Cliente**: Sistema de tickets ou chat
+- **Onboarding**: Tutoriais e guias de início rápido
+
+### Marketing e Distribuição
+- **Landing Page**: Página promocional com funcionalidades e preços
+- **Período de Teste**: Free trial para novos utilizadores
+- **Testemunhos**: Casos de sucesso de clientes
