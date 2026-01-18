@@ -61,6 +61,17 @@ A Peralta Gardens é uma aplicação mobile-first desenvolvida para o Tiago Sant
   - `clients` - Customer records with service type flags (garden/pool/jacuzzi)
   - `appointments` - Scheduled service appointments
   - `serviceLogs` - Completed service records
+  - `employees` - Employee records with hourly pay/charge rates
+
+### Employee Management
+- **Employees Page**: Full CRUD for managing employees via "Mais" → "Funcionários"
+- **Hourly Rates**: Each employee has:
+  - `hourlyPayRate` - What the employee is paid per hour (internal cost)
+  - `hourlyChargeRate` - What is charged to clients per hour (billing rate)
+- **Service Log Integration**: When creating a service log, labor entries can select from registered employees
+  - Selecting an employee auto-fills the hourly charge rate
+  - Supports manual entry for non-registered workers
+- **Active Status**: Employees can be deactivated when they leave (preserved for historical records)
 
 ### Authentication Flow
 - Uses Replit Auth blueprint integration in `server/replit_integrations/auth/`

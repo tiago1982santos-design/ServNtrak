@@ -6,6 +6,7 @@ import { useQuickPhotos, useDeleteQuickPhoto } from "@/hooks/use-quick-photos";
 import { useAppointments, useCreateAppointment, useUpdateAppointment } from "@/hooks/use-appointments";
 import { useClientServiceStats, useCreateServiceVisit } from "@/hooks/use-service-visits";
 import { useUpload } from "@/hooks/use-upload";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus, Users, Timer, Check, MessageCircle } from "lucide-react";
 import { SiWhatsapp, SiFacebook } from "react-icons/si";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { insertServiceLogSchema, insertAppointmentSchema, insertClientSchema, type Client, type ServiceLog, type Appointment, type QuickPhoto } from "@shared/schema";
+import { insertServiceLogSchema, insertAppointmentSchema, insertClientSchema, type Client, type ServiceLog, type Appointment, type QuickPhoto, type Employee } from "@shared/schema";
 import { createServiceLogWithEntriesInput } from "@shared/routes";
 import { getClientVisitSchedule, getSeason, getSeasonLabel, getTotalMonthlyVisits } from "@shared/scheduling";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -365,7 +366,7 @@ export default function ClientDetail() {
   );
 }
 
-type LaborEntry = { workerName: string; hours: number; hourlyRate: number; cost: number };
+type LaborEntry = { employeeId?: number; workerName: string; hours: number; hourlyRate: number; hourlyPayRate?: number; cost: number };
 type MaterialEntry = { materialName: string; quantity: number; unitPrice: number; cost: number };
 
 const serviceLogFormSchema = insertServiceLogSchema.extend({
@@ -385,6 +386,10 @@ function AddServiceLogDialog({ clientId }: { clientId: number }) {
   const createLog = useCreateServiceLog();
   const { uploadFile, isUploading } = useUpload();
   
+  const { data: employees } = useQuery<Employee[]>({
+    queryKey: ['/api/employees'],
+  });
+  
   const form = useForm<z.infer<typeof serviceLogFormSchema>>({
     resolver: zodResolver(serviceLogFormSchema),
     defaultValues: {
@@ -400,14 +405,38 @@ function AddServiceLogDialog({ clientId }: { clientId: number }) {
   const materialsSubtotal = materialEntries.reduce((sum, e) => sum + e.cost, 0);
   const total = laborSubtotal + materialsSubtotal;
 
+  const activeEmployees = employees?.filter(e => e.isActive) || [];
+
   const addLaborEntry = () => {
-    setLaborEntries([...laborEntries, { workerName: "", hours: 0, hourlyRate: 0, cost: 0 }]);
+    setLaborEntries([...laborEntries, { employeeId: undefined, workerName: "", hours: 0, hourlyRate: 0, hourlyPayRate: 0, cost: 0 }]);
+  };
+
+  const selectEmployee = (index: number, employeeId: string) => {
+    const updated = [...laborEntries];
+    if (employeeId === "manual") {
+      updated[index].employeeId = undefined;
+      updated[index].workerName = "";
+      updated[index].hourlyRate = 0;
+      updated[index].hourlyPayRate = 0;
+    } else {
+      const emp = employees?.find(e => e.id === parseInt(employeeId));
+      if (emp) {
+        updated[index].employeeId = emp.id;
+        updated[index].workerName = emp.name;
+        updated[index].hourlyRate = Number(emp.hourlyChargeRate) || 0;
+        updated[index].hourlyPayRate = Number(emp.hourlyPayRate) || 0;
+      }
+    }
+    updated[index].cost = updated[index].hours * updated[index].hourlyRate;
+    setLaborEntries(updated);
   };
 
   const updateLaborEntry = (index: number, field: keyof LaborEntry, value: string | number) => {
     const updated = [...laborEntries];
     if (field === "workerName") {
       updated[index].workerName = value as string;
+    } else if (field === "employeeId") {
+      updated[index].employeeId = value ? Number(value) : undefined;
     } else {
       updated[index][field] = Number(value) || 0;
     }
@@ -572,35 +601,71 @@ function AddServiceLogDialog({ clientId }: { clientId: number }) {
                 </Button>
               </div>
               {laborEntries.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {laborEntries.map((entry, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-1 items-center">
-                      <Input
-                        placeholder="Nome"
-                        value={entry.workerName}
-                        onChange={(e) => updateLaborEntry(idx, "workerName", e.target.value)}
-                        className="col-span-4 h-8 text-xs rounded-lg"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Hrs"
-                        value={entry.hours || ""}
-                        onChange={(e) => updateLaborEntry(idx, "hours", e.target.value)}
-                        className="col-span-2 h-8 text-xs rounded-lg"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="€/h"
-                        value={entry.hourlyRate || ""}
-                        onChange={(e) => updateLaborEntry(idx, "hourlyRate", e.target.value)}
-                        className="col-span-2 h-8 text-xs rounded-lg"
-                      />
-                      <div className="col-span-3 text-xs font-medium text-right">
-                        {entry.cost.toFixed(2)}€
+                    <div key={idx} className="p-2 rounded-lg bg-white/50 border space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={entry.employeeId?.toString() || "manual"}
+                          onValueChange={(val) => selectEmployee(idx, val)}
+                        >
+                          <SelectTrigger className="flex-1 h-8 text-xs rounded-lg" data-testid={`select-employee-${idx}`}>
+                            <SelectValue placeholder="Selecionar funcionário" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="manual">Entrada manual</SelectItem>
+                            {activeEmployees.map((emp) => (
+                              <SelectItem key={emp.id} value={emp.id.toString()}>
+                                {emp.name} ({Number(emp.hourlyChargeRate).toFixed(0)}€/h)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button type="button" size="icon" variant="ghost" onClick={() => removeLaborEntry(idx)} className="h-6 w-6 shrink-0">
+                          <X className="w-3 h-3 text-red-500" />
+                        </Button>
                       </div>
-                      <Button type="button" size="icon" variant="ghost" onClick={() => removeLaborEntry(idx)} className="col-span-1 h-6 w-6">
-                        <X className="w-3 h-3 text-red-500" />
-                      </Button>
+                      {!entry.employeeId && (
+                        <Input
+                          placeholder="Nome do trabalhador"
+                          value={entry.workerName}
+                          onChange={(e) => updateLaborEntry(idx, "workerName", e.target.value)}
+                          className="h-8 text-xs rounded-lg"
+                          data-testid={`input-worker-name-${idx}`}
+                        />
+                      )}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">Horas</label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            placeholder="0"
+                            value={entry.hours || ""}
+                            onChange={(e) => updateLaborEntry(idx, "hours", e.target.value)}
+                            className="h-8 text-xs rounded-lg"
+                            data-testid={`input-hours-${idx}`}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-muted-foreground">€/hora</label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={entry.hourlyRate || ""}
+                            onChange={(e) => updateLaborEntry(idx, "hourlyRate", e.target.value)}
+                            className="h-8 text-xs rounded-lg"
+                            data-testid={`input-rate-${idx}`}
+                            disabled={!!entry.employeeId}
+                          />
+                        </div>
+                        <div className="flex flex-col justify-end">
+                          <label className="text-[10px] text-muted-foreground">Total</label>
+                          <div className="h-8 flex items-center justify-end text-sm font-semibold text-blue-700">
+                            {entry.cost.toFixed(2)}€
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ))}
                   <div className="text-right text-sm font-bold text-blue-700 pt-1 border-t">

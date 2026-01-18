@@ -25,6 +25,7 @@ import Logos from "@/pages/Logos";
 import Gallery from "@/pages/Gallery";
 import Finances from "@/pages/Finances";
 import Exports from "@/pages/Exports";
+import Employees from "@/pages/Employees";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/gallery" component={Gallery} />
       <Route path="/finances" component={Finances} />
       <Route path="/exports" component={Exports} />
+      <Route path="/employees" component={Employees} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -4,7 +4,7 @@ import {
   serviceLogLaborEntries, serviceLogMaterialEntries,
   purchaseCategories, stores, purchases, clientPayments,
   serviceVisits, serviceVisitServices,
-  financialConfig, monthlyDistributions,
+  financialConfig, monthlyDistributions, employees,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
@@ -21,7 +21,8 @@ import {
   type InsertServiceVisitService, type ServiceVisitService,
   type ClientServiceStats,
   type InsertFinancialConfig, type FinancialConfig,
-  type InsertMonthlyDistribution, type MonthlyDistribution
+  type InsertMonthlyDistribution, type MonthlyDistribution,
+  type InsertEmployee, type Employee
 } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
@@ -109,6 +110,14 @@ export interface IStorage {
   getMonthlyDistribution(userId: string, year: number, month: number): Promise<MonthlyDistribution | undefined>;
   calculateAndSaveDistribution(userId: string, year: number, month: number): Promise<MonthlyDistribution>;
   updateMonthlyDistribution(id: number, userId: string, updates: Partial<InsertMonthlyDistribution>): Promise<MonthlyDistribution | undefined>;
+
+  // Employees
+  getEmployees(userId: string, includeInactive?: boolean): Promise<Employee[]>;
+  getEmployee(id: number, userId: string): Promise<Employee | undefined>;
+  createEmployee(employee: InsertEmployee & { userId: string }): Promise<Employee>;
+  updateEmployee(id: number, userId: string, updates: Partial<InsertEmployee>): Promise<Employee | undefined>;
+  toggleEmployeeActive(id: number, userId: string): Promise<Employee | undefined>;
+  deleteEmployee(id: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -803,6 +812,49 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(monthlyDistributions.id, id), eq(monthlyDistributions.userId, userId)))
       .returning();
     return updated;
+  }
+
+  // Employees
+  async getEmployees(userId: string, includeInactive: boolean = false): Promise<Employee[]> {
+    if (includeInactive) {
+      return await db.select().from(employees).where(eq(employees.userId, userId)).orderBy(desc(employees.createdAt));
+    }
+    return await db.select().from(employees).where(and(eq(employees.userId, userId), eq(employees.isActive, true))).orderBy(desc(employees.createdAt));
+  }
+
+  async getEmployee(id: number, userId: string): Promise<Employee | undefined> {
+    const [employee] = await db.select().from(employees).where(and(eq(employees.id, id), eq(employees.userId, userId)));
+    return employee;
+  }
+
+  async createEmployee(employee: InsertEmployee & { userId: string }): Promise<Employee> {
+    const [newEmployee] = await db.insert(employees).values(employee).returning();
+    return newEmployee;
+  }
+
+  async updateEmployee(id: number, userId: string, updates: Partial<InsertEmployee>): Promise<Employee | undefined> {
+    const [updated] = await db
+      .update(employees)
+      .set(updates)
+      .where(and(eq(employees.id, id), eq(employees.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async toggleEmployeeActive(id: number, userId: string): Promise<Employee | undefined> {
+    const employee = await this.getEmployee(id, userId);
+    if (!employee) return undefined;
+    
+    const [updated] = await db
+      .update(employees)
+      .set({ isActive: !employee.isActive })
+      .where(and(eq(employees.id, id), eq(employees.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deleteEmployee(id: number, userId: string): Promise<void> {
+    await db.delete(employees).where(and(eq(employees.id, id), eq(employees.userId, userId)));
   }
 }
 

@@ -5,7 +5,7 @@ import { format, isToday, startOfDay } from "date-fns";
 import { 
   Loader2, CalendarClock, MapPin, CheckCircle2, Bell, Map, Euro, 
   AlertCircle, Banknote, BarChart3, CreditCard, Image, Wallet, 
-  Download, ShoppingBag, Clock, ChevronRight, Sparkles
+  Download, ShoppingBag, Clock, ChevronRight, Sparkles, Users
 } from "lucide-react";
 import { Link } from "wouter";
 import { BottomNav } from "@/components/BottomNav";
@@ -260,7 +260,20 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="slide-up pb-4" style={{ animationDelay: '0.45s' }}>
+        <section className="slide-up pb-4 space-y-3" style={{ animationDelay: '0.45s' }}>
+          <Link href="/employees" className="block" data-testid="link-employees">
+            <div className="mobile-card flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-800/20 flex items-center justify-center">
+                <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-foreground">Funcionários</h3>
+                <p className="text-sm text-muted-foreground">Gerir equipa e salários</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
+            </div>
+          </Link>
+          
           <Link href="/purchases" className="block" data-testid="link-purchases">
             <div className="mobile-card flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-900/30 dark:to-violet-800/20 flex items-center justify-center">
