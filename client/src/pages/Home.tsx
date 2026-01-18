@@ -3,7 +3,7 @@ import { useAppointments } from "@/hooks/use-appointments";
 import { useReminders } from "@/hooks/use-reminders";
 import { useUnpaidExtraServices, useMarkServiceAsPaid } from "@/hooks/use-service-logs";
 import { format, isToday, isTomorrow, startOfDay, isPast } from "date-fns";
-import { Loader2, CalendarClock, MapPin, CheckCircle2, Bell, Map, Euro, AlertCircle, Banknote, BarChart3, CreditCard, Image, Wallet } from "lucide-react";
+import { Loader2, CalendarClock, MapPin, CheckCircle2, Bell, Map, Euro, AlertCircle, Banknote, BarChart3, CreditCard, Image, Wallet, Download } from "lucide-react";
 import { Link } from "wouter";
 import { BottomNav } from "@/components/BottomNav";
 import { CreateClientDialog } from "@/components/CreateClientDialog";
@@ -224,6 +224,13 @@ export default function Home() {
                 <Wallet className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               </div>
               <h3 className="font-bold text-xs text-emerald-900 dark:text-emerald-300 text-center">Finanças</h3>
+            </Link>
+
+            <Link href="/exports" className="flex flex-col items-center bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900/20 dark:to-slate-800/10 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/30 shadow-sm hover:shadow-md transition-all" data-testid="link-quick-exports">
+              <div className="w-9 h-9 bg-slate-500/10 rounded-full flex items-center justify-center mb-2">
+                <Download className="w-4 h-4 text-slate-700 dark:text-slate-400" />
+              </div>
+              <h3 className="font-bold text-xs text-slate-900 dark:text-slate-300 text-center">Exportar</h3>
             </Link>
           </div>
         </section>
