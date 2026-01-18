@@ -57,15 +57,16 @@ export default function Purchases() {
   const filteredPurchases = purchases || [];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="bg-primary pt-12 pb-6 px-6 rounded-b-[2rem] shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+    <div className="min-h-screen bg-background pb-24 page-transition">
+      <div className="gradient-primary pt-10 pb-6 px-5 relative overflow-hidden">
+        <div className="absolute inset-0 gradient-mesh opacity-40" />
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
             <ShoppingCart className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-display font-bold text-white" data-testid="heading-purchases">Compras</h1>
-            <p className="text-primary-foreground/80 text-sm" data-testid="text-purchases-subtitle">Gestão de compras e stock</p>
+            <h1 className="text-2xl font-extrabold text-white" data-testid="heading-purchases">Compras</h1>
+            <p className="text-white/70 text-sm" data-testid="text-purchases-subtitle">Gestão de compras e stock</p>
           </div>
         </div>
       </div>

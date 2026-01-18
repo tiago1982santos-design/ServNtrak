@@ -130,8 +130,8 @@ export default function Clients() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 px-6 py-4 pt-8">
+    <div className="min-h-screen bg-background pb-24 page-transition">
+      <div className="sticky top-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border/30 px-5 py-4 pt-8 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-display font-bold text-foreground">Clientes</h1>
           <CreateClientDialog />
@@ -230,7 +230,7 @@ export default function Clients() {
         </div>
       </div>
 
-      <div className="px-6 py-4 space-y-3">
+      <div className="px-5 py-4 space-y-3">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -238,7 +238,7 @@ export default function Clients() {
         ) : filteredAndSortedClients.length > 0 ? (
           filteredAndSortedClients.map((client) => (
             <Link key={client.id} href={`/clients/${client.id}`}>
-              <Card className="hover-elevate cursor-pointer transition-all duration-200" data-testid={`card-client-${client.id}`}>
+              <Card className="mobile-card cursor-pointer" data-testid={`card-client-${client.id}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="relative">

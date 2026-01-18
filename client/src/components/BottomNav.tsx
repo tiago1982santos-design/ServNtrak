@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Calendar, Users, MapPin, CloudSun, User, ShoppingCart } from "lucide-react";
+import { Home, Calendar, Users, User, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -8,27 +8,42 @@ export function BottomNav() {
   const navItems = [
     { href: "/", icon: Home, label: "Início" },
     { href: "/clients", icon: Users, label: "Clientes" },
-    { href: "/purchases", icon: ShoppingCart, label: "Compras" },
     { href: "/calendar", icon: Calendar, label: "Agenda" },
+    { href: "/purchases", icon: LayoutGrid, label: "Mais" },
     { href: "/profile", icon: User, label: "Perfil" },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border pb-safe pt-1 px-2 shadow-[0_-5px_10px_rgba(0,0,0,0.02)]">
-      <div className="flex justify-around items-center max-w-md mx-auto h-14">
+    <nav className="bottom-nav" data-testid="bottom-navigation">
+      <div className="flex justify-around items-center max-w-lg mx-auto">
         {navItems.map((item) => {
-          const isActive = location === item.href;
+          const isActive = location === item.href || 
+            (item.href === "/purchases" && ["/purchases", "/finances", "/reports", "/exports", "/billing", "/payments", "/gallery", "/reminders", "/map"].includes(location));
+          
           return (
-            <Link key={item.href} href={item.href} className={cn(
-              "flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-all duration-300",
-              isActive ? "text-primary" : "text-muted-foreground"
-            )}>
-              <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5px]")} />
-              <span className="text-[9px] font-medium">{item.label}</span>
+            <Link 
+              key={item.href} 
+              href={item.href} 
+              className={cn(
+                "bottom-nav-item flex-1 touch-manipulation",
+                isActive && "active"
+              )}
+              data-testid={`nav-${item.label.toLowerCase()}`}
+            >
+              <item.icon className={cn(
+                "nav-icon",
+                isActive ? "text-primary" : "text-muted-foreground"
+              )} />
+              <span className={cn(
+                "nav-label",
+                isActive ? "text-primary" : "text-muted-foreground"
+              )}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 }
