@@ -76,9 +76,11 @@ export const serviceLogs = pgTable("service_logs", {
 export const serviceLogLaborEntries = pgTable("service_log_labor_entries", {
   id: serial("id").primaryKey(),
   serviceLogId: integer("service_log_id").notNull(),
+  employeeId: integer("employee_id"), // Optional - links to employee
   workerName: text("worker_name").notNull(),
   hours: doublePrecision("hours").notNull(),
-  hourlyRate: doublePrecision("hourly_rate").notNull(),
+  hourlyRate: doublePrecision("hourly_rate").notNull(), // Rate charged to client
+  hourlyPayRate: doublePrecision("hourly_pay_rate"), // Rate paid to employee
   cost: doublePrecision("cost").notNull(), // hours * hourlyRate
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -194,6 +196,20 @@ export const purchases = pgTable("purchases", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Employees table
+export const employees = pgTable("employees", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // Owner
+  name: text("name").notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  hourlyPayRate: doublePrecision("hourly_pay_rate").notNull(), // What the employee is paid per hour
+  hourlyChargeRate: doublePrecision("hourly_charge_rate").notNull(), // What is charged to client per hour
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -250,6 +266,18 @@ export const serviceLogLaborEntriesRelations = relations(serviceLogLaborEntries,
     fields: [serviceLogLaborEntries.serviceLogId],
     references: [serviceLogs.id],
   }),
+  employee: one(employees, {
+    fields: [serviceLogLaborEntries.employeeId],
+    references: [employees.id],
+  }),
+}));
+
+export const employeesRelations = relations(employees, ({ one, many }) => ({
+  user: one(users, {
+    fields: [employees.userId],
+    references: [users.id],
+  }),
+  laborEntries: many(serviceLogLaborEntries),
 }));
 
 export const serviceLogMaterialEntriesRelations = relations(serviceLogMaterialEntries, ({ one }) => ({
@@ -367,6 +395,7 @@ export const insertServiceVisitSchema = createInsertSchema(serviceVisits).omit({
 export const insertServiceVisitServiceSchema = createInsertSchema(serviceVisitServices).omit({ id: true, createdAt: true });
 export const insertFinancialConfigSchema = createInsertSchema(financialConfig).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 export const insertMonthlyDistributionSchema = createInsertSchema(monthlyDistributions).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
+export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, userId: true, createdAt: true });
 
 // === TYPES ===
 
@@ -447,3 +476,11 @@ export type InsertFinancialConfig = z.infer<typeof insertFinancialConfigSchema>;
 
 export type MonthlyDistribution = typeof monthlyDistributions.$inferSelect;
 export type InsertMonthlyDistribution = z.infer<typeof insertMonthlyDistributionSchema>;
+
+export type Employee = typeof employees.$inferSelect;
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+
+// Extended type for labor entry with employee details
+export type ServiceLogLaborEntryWithEmployee = ServiceLogLaborEntry & {
+  employee?: Employee | null;
+};
