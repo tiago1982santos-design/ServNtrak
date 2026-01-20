@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Leaf, Waves, ThermometerSun, Euro, Clock } from "lucide-react";
+import { Loader2, Plus, Leaf, Waves, ThermometerSun, Euro, Clock, Banknote, Building2, Smartphone, CalendarDays } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
@@ -42,6 +43,8 @@ export function CreateClientDialog() {
       billingType: "monthly",
       monthlyRate: undefined,
       hourlyRate: undefined,
+      paymentMethod: undefined,
+      scheduledTransferDay: undefined,
       poolLength: undefined,
       poolWidth: undefined,
       poolMinDepth: undefined,
@@ -534,6 +537,83 @@ export function CreateClientDialog() {
                         />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+
+            <div className="space-y-3 pt-2 p-3 rounded-xl border bg-muted/30">
+              <FormLabel className="flex items-center gap-2">
+                <Banknote className="w-4 h-4 text-primary" />
+                Método de Pagamento
+              </FormLabel>
+              <FormField
+                control={form.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger className="rounded-xl" data-testid="select-payment-method">
+                          <SelectValue placeholder="Selecione o método" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="cash">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="w-4 h-4 text-green-600" />
+                            Dinheiro
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="bank_transfer">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-blue-600" />
+                            Transferência Bancária
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="mbway">
+                          <div className="flex items-center gap-2">
+                            <Smartphone className="w-4 h-4 text-red-500" />
+                            MBway
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              
+              {form.watch("paymentMethod") === "bank_transfer" && (
+                <FormField
+                  control={form.control}
+                  name="scheduledTransferDay"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-sm">
+                        <CalendarDays className="w-4 h-4" />
+                        Dia da Transferência Agendada
+                      </FormLabel>
+                      <FormControl>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Dia</span>
+                          <Input 
+                            type="number" 
+                            min="1"
+                            max="31"
+                            placeholder="15" 
+                            className="rounded-xl w-20"
+                            data-testid="input-scheduled-transfer-day"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                          />
+                          <span className="text-sm text-muted-foreground">de cada mês</span>
+                        </div>
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Opcional - indica quando o cliente costuma fazer a transferência
+                      </p>
                     </FormItem>
                   )}
                 />

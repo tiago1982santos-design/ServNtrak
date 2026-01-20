@@ -40,6 +40,10 @@ export const clients = pgTable("clients", {
   billingType: text("billing_type").default("monthly"), // 'monthly' or 'hourly'
   monthlyRate: doublePrecision("monthly_rate"), // Fixed monthly amount in euros
   hourlyRate: doublePrecision("hourly_rate"), // Hourly rate in euros
+  // Payment method: 'cash', 'bank_transfer', 'mbway'
+  paymentMethod: text("payment_method"),
+  // Day of month when scheduled transfer is made (only for bank_transfer)
+  scheduledTransferDay: integer("scheduled_transfer_day"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

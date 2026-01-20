@@ -7,7 +7,7 @@ import { useAppointments, useCreateAppointment, useUpdateAppointment } from "@/h
 import { useClientServiceStats, useCreateServiceVisit } from "@/hooks/use-service-visits";
 import { useUpload } from "@/hooks/use-upload";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus, Users, Timer, Check, MessageCircle } from "lucide-react";
+import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus, Users, Timer, Check, MessageCircle, Banknote, Building2, Smartphone, CalendarDays } from "lucide-react";
 import { SiWhatsapp, SiFacebook } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -137,6 +137,24 @@ export default function ClientDetail() {
               {client.jacuzziLength && client.jacuzziWidth && client.jacuzziDepth && (
                 <span className="text-xs font-bold">
                   ({(client.jacuzziLength * client.jacuzziWidth * client.jacuzziDepth).toFixed(0)} m³)
+                </span>
+              )}
+            </div>
+          )}
+          {client.paymentMethod && (
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+              client.paymentMethod === 'cash' ? 'bg-green-50 text-green-700' :
+              client.paymentMethod === 'bank_transfer' ? 'bg-blue-50 text-blue-700' :
+              'bg-red-50 text-red-700'
+            }`}>
+              {client.paymentMethod === 'cash' && <Banknote className="w-4 h-4" />}
+              {client.paymentMethod === 'bank_transfer' && <Building2 className="w-4 h-4" />}
+              {client.paymentMethod === 'mbway' && <Smartphone className="w-4 h-4" />}
+              {client.paymentMethod === 'cash' ? 'Dinheiro' :
+               client.paymentMethod === 'bank_transfer' ? 'Transferência' : 'MBway'}
+              {client.paymentMethod === 'bank_transfer' && client.scheduledTransferDay && (
+                <span className="text-xs font-normal opacity-80">
+                  (dia {client.scheduledTransferDay})
                 </span>
               )}
             </div>
@@ -941,6 +959,8 @@ function EditClientDialog({ client }: { client: Client }) {
       billingType: client.billingType || "monthly",
       monthlyRate: client.monthlyRate || undefined,
       hourlyRate: client.hourlyRate || undefined,
+      paymentMethod: client.paymentMethod || undefined,
+      scheduledTransferDay: client.scheduledTransferDay || undefined,
       poolLength: client.poolLength || undefined,
       poolWidth: client.poolWidth || undefined,
       poolMinDepth: client.poolMinDepth || undefined,
@@ -1430,6 +1450,83 @@ function EditClientDialog({ client }: { client: Client }) {
                           onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                         />
                       </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+
+            <div className="space-y-3 p-3 rounded-xl border bg-muted/30">
+              <FormLabel className="flex items-center gap-2">
+                <Banknote className="w-4 h-4 text-primary" />
+                Método de Pagamento
+              </FormLabel>
+              <FormField
+                control={form.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger className="rounded-xl" data-testid="select-edit-payment-method">
+                          <SelectValue placeholder="Selecione o método" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="cash">
+                          <div className="flex items-center gap-2">
+                            <Banknote className="w-4 h-4 text-green-600" />
+                            Dinheiro
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="bank_transfer">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-blue-600" />
+                            Transferência Bancária
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="mbway">
+                          <div className="flex items-center gap-2">
+                            <Smartphone className="w-4 h-4 text-red-500" />
+                            MBway
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              
+              {form.watch("paymentMethod") === "bank_transfer" && (
+                <FormField
+                  control={form.control}
+                  name="scheduledTransferDay"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-sm">
+                        <CalendarDays className="w-4 h-4" />
+                        Dia da Transferência Agendada
+                      </FormLabel>
+                      <FormControl>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Dia</span>
+                          <Input 
+                            type="number" 
+                            min="1"
+                            max="31"
+                            placeholder="15" 
+                            className="rounded-xl w-20"
+                            data-testid="input-edit-scheduled-transfer-day"
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                          />
+                          <span className="text-sm text-muted-foreground">de cada mês</span>
+                        </div>
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Opcional - indica quando o cliente costuma fazer a transferência
+                      </p>
                     </FormItem>
                   )}
                 />
