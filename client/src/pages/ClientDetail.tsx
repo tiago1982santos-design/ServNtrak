@@ -1447,7 +1447,8 @@ function EditClientDialog({ client }: { client: Client }) {
 }
 
 const completeVisitFormSchema = z.object({
-  actualDurationMinutes: z.number().min(5, "Mínimo 5 minutos").max(600, "Máximo 10 horas"),
+  durationHours: z.number().min(0, "Mínimo 0 horas").max(10, "Máximo 10 horas"),
+  durationMinutes: z.number().min(0, "Mínimo 0 minutos").max(59, "Máximo 59 minutos"),
   workerCount: z.number().min(1, "Mínimo 1 trabalhador").max(10, "Máximo 10 trabalhadores"),
   notes: z.string().optional(),
   includeGarden: z.boolean().default(false),
@@ -1474,7 +1475,8 @@ function CompleteVisitDialog({
   const form = useForm<z.infer<typeof completeVisitFormSchema>>({
     resolver: zodResolver(completeVisitFormSchema),
     defaultValues: {
-      actualDurationMinutes: estimatedDuration,
+      durationHours: Math.floor(estimatedDuration / 60),
+      durationMinutes: estimatedDuration % 60,
       workerCount: 1,
       notes: "",
       includeGarden: appointmentType === "Garden",
@@ -1494,11 +1496,13 @@ function CompleteVisitDialog({
         services.push({ serviceType: appointmentType, wasPlanned: true });
       }
 
+      const totalMinutes = (values.durationHours * 60) + values.durationMinutes;
+
       await createServiceVisit.mutateAsync({
         visit: {
           clientId,
           visitDate: new Date(),
-          actualDurationMinutes: values.actualDurationMinutes,
+          actualDurationMinutes: totalMinutes,
           workerCount: values.workerCount,
           notes: values.notes,
         },
@@ -1531,31 +1535,54 @@ function CompleteVisitDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="actualDurationMinutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Timer className="w-4 h-4" /> Duração Real
-                  </FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Input 
-                        type="number" 
-                        min="5"
-                        step="5"
-                        className="rounded-xl w-24"
-                        data-testid="input-actual-duration"
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                      />
-                      <span className="text-sm text-muted-foreground">minutos</span>
-                    </div>
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Timer className="w-4 h-4" /> Duração Real
+              </FormLabel>
+              <div className="flex items-center gap-2">
+                <FormField
+                  control={form.control}
+                  name="durationHours"
+                  render={({ field }) => (
+                    <FormControl>
+                      <div className="flex items-center gap-1">
+                        <Input 
+                          type="number" 
+                          min="0"
+                          max="10"
+                          className="rounded-xl w-16 text-center"
+                          data-testid="input-duration-hours"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                        <span className="text-sm font-medium">h</span>
+                      </div>
+                    </FormControl>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="durationMinutes"
+                  render={({ field }) => (
+                    <FormControl>
+                      <div className="flex items-center gap-1">
+                        <Input 
+                          type="number" 
+                          min="0"
+                          max="59"
+                          step="5"
+                          className="rounded-xl w-16 text-center"
+                          data-testid="input-duration-minutes"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        />
+                        <span className="text-sm font-medium">min</span>
+                      </div>
+                    </FormControl>
+                  )}
+                />
+              </div>
+            </FormItem>
 
             <FormField
               control={form.control}
