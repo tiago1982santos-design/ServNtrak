@@ -26,6 +26,7 @@ import Gallery from "@/pages/Gallery";
 import Finances from "@/pages/Finances";
 import Exports from "@/pages/Exports";
 import Employees from "@/pages/Employees";
+import PendingTasks from "@/pages/PendingTasks";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/finances" component={Finances} />
       <Route path="/exports" component={Exports} />
       <Route path="/employees" component={Employees} />
+      <Route path="/pending-tasks" component={PendingTasks} />
       <Route component={NotFound} />
     </Switch>
   );

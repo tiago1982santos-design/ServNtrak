@@ -5,7 +5,7 @@ import { format, isToday, startOfDay } from "date-fns";
 import { 
   Loader2, CalendarClock, MapPin, CheckCircle2, Bell, Map, Euro, 
   AlertCircle, Banknote, BarChart3, CreditCard, Image, Wallet, 
-  Download, ShoppingBag, Clock, ChevronRight, Sparkles, Users
+  Download, ShoppingBag, Clock, ChevronRight, Sparkles, Users, ClipboardList
 } from "lucide-react";
 import { Link } from "wouter";
 import { BottomNav } from "@/components/BottomNav";
@@ -261,6 +261,19 @@ export default function Home() {
         </section>
 
         <section className="slide-up pb-4 space-y-3" style={{ animationDelay: '0.45s' }}>
+          <Link href="/pending-tasks" className="block" data-testid="link-pending-tasks">
+            <div className="mobile-card flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-800/20 flex items-center justify-center">
+                <ClipboardList className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-foreground">Tarefas Pendentes</h3>
+                <p className="text-sm text-muted-foreground">Ver todas as tarefas por fazer</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
+            </div>
+          </Link>
+          
           <Link href="/employees" className="block" data-testid="link-employees">
             <div className="mobile-card flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-800/20 flex items-center justify-center">

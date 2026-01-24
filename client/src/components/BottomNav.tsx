@@ -18,7 +18,7 @@ export function BottomNav() {
       <div className="flex justify-around items-center max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = location === item.href || 
-            (item.href === "/purchases" && ["/purchases", "/finances", "/reports", "/exports", "/billing", "/payments", "/gallery", "/reminders", "/map", "/employees"].includes(location));
+            (item.href === "/purchases" && ["/purchases", "/finances", "/reports", "/exports", "/billing", "/payments", "/gallery", "/reminders", "/map", "/employees", "/pending-tasks"].includes(location));
           
           return (
             <Link 
