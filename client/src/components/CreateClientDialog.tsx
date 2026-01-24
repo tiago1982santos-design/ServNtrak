@@ -15,6 +15,7 @@ import { Loader2, Plus, Leaf, Waves, ThermometerSun, Euro, Clock, Banknote, Buil
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { DurationInput } from "@/components/DurationInput";
 
 // Form schema extending the insert schema with validation
 const formSchema = insertClientSchema.extend({
@@ -436,20 +437,11 @@ export function CreateClientDialog() {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          type="number" 
-                          min="15"
-                          step="15"
-                          placeholder="60" 
-                          className="rounded-xl w-24"
-                          data-testid="input-service-duration"
-                          {...field}
-                          value={field.value ?? 60}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 60)}
-                        />
-                        <span className="text-sm text-muted-foreground">minutos</span>
-                      </div>
+                      <DurationInput
+                        value={field.value ?? 60}
+                        onChange={field.onChange}
+                        data-testid="input-service-duration"
+                      />
                     </FormControl>
                     <p className="text-xs text-muted-foreground mt-1">
                       Tempo médio para realizar todos os serviços neste cliente

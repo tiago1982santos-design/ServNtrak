@@ -8,6 +8,8 @@ import { useClientServiceStats, useCreateServiceVisit } from "@/hooks/use-servic
 import { useUpload } from "@/hooks/use-upload";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ArrowLeft, Phone, MapPin, Leaf, Waves, ThermometerSun, Plus, Calendar, CheckCircle2, Camera, X, Image as ImageIcon, Pencil, Euro, Clock, Flower2, Sparkles, FolderPlus, Users, Timer, Check, MessageCircle, Banknote, Building2, Smartphone, CalendarDays, AlertTriangle, ChevronUp, Wrench, ClipboardList, Trash2, Lightbulb, ThumbsUp, ThumbsDown } from "lucide-react";
+import { DurationInput } from "@/components/DurationInput";
+import { formatDuration } from "@/lib/utils";
 import { CreatePendingTaskDialog } from "@/components/CreatePendingTaskDialog";
 import { CreateSuggestedWorkDialog } from "@/components/CreateSuggestedWorkDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -550,13 +552,24 @@ export default function ClientDetail() {
                     </div>
                   )}
                   
-                  {work.estimatedCost && (
-                    <div className="flex items-center gap-1 mb-3">
-                      <Euro className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-semibold text-green-600">
-                        {(work.estimatedCost / 100).toFixed(2)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">(estimado)</span>
+                  {(work.estimatedCost || work.estimatedDurationMinutes) && (
+                    <div className="flex items-center gap-4 mb-3">
+                      {work.estimatedCost && (
+                        <div className="flex items-center gap-1">
+                          <Euro className="w-4 h-4 text-green-600" />
+                          <span className="text-sm font-semibold text-green-600">
+                            {(work.estimatedCost / 100).toFixed(2)}€
+                          </span>
+                        </div>
+                      )}
+                      {work.estimatedDurationMinutes && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-semibold text-blue-600">
+                            {formatDuration(work.estimatedDurationMinutes)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -1751,20 +1764,11 @@ function EditClientDialog({ client }: { client: Client }) {
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          type="number" 
-                          min="15"
-                          step="15"
-                          placeholder="60" 
-                          className="rounded-xl w-24"
-                          data-testid="input-edit-service-duration"
-                          {...field}
-                          value={field.value ?? 60}
-                          onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 60)}
-                        />
-                        <span className="text-sm text-muted-foreground">minutos</span>
-                      </div>
+                      <DurationInput
+                        value={field.value ?? 60}
+                        onChange={field.onChange}
+                        data-testid="input-edit-service-duration"
+                      />
                     </FormControl>
                     <p className="text-xs text-muted-foreground mt-1">
                       Tempo médio para realizar todos os serviços

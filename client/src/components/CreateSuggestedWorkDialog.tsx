@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Lightbulb, Leaf, Waves, ThermometerSun, Wrench, X, Loader2, ImagePlus, Euro } from "lucide-react";
+import { Lightbulb, Leaf, Waves, ThermometerSun, Wrench, X, Loader2, ImagePlus, Euro, Clock } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
+import { DurationInput } from "@/components/DurationInput";
 
 interface CreateSuggestedWorkDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ export function CreateSuggestedWorkDialog({ open, onOpenChange, clientId, client
   const [notes, setNotes] = useState("");
   const [category, setCategory] = useState("Geral");
   const [estimatedCost, setEstimatedCost] = useState("");
+  const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState(60);
   const [photos, setPhotos] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -39,6 +41,7 @@ export function CreateSuggestedWorkDialog({ open, onOpenChange, clientId, client
       notes: string | null;
       category: string;
       estimatedCost: number | null;
+      estimatedDurationMinutes: number | null;
       photos: string[];
     }) => {
       const response = await fetch("/api/suggested-works", {
@@ -74,6 +77,7 @@ export function CreateSuggestedWorkDialog({ open, onOpenChange, clientId, client
     setNotes("");
     setCategory("Geral");
     setEstimatedCost("");
+    setEstimatedDurationMinutes(60);
     setPhotos([]);
   };
 
@@ -128,6 +132,7 @@ export function CreateSuggestedWorkDialog({ open, onOpenChange, clientId, client
       notes: notes.trim() || null,
       category,
       estimatedCost: estimatedCost ? Math.round(parseFloat(estimatedCost) * 100) : null,
+      estimatedDurationMinutes: estimatedDurationMinutes > 0 ? estimatedDurationMinutes : null,
       photos,
     });
   };
@@ -201,6 +206,18 @@ export function CreateSuggestedWorkDialog({ open, onOpenChange, clientId, client
                 />
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
+              Duração Estimada
+            </Label>
+            <DurationInput
+              value={estimatedDurationMinutes}
+              onChange={setEstimatedDurationMinutes}
+              data-testid="input-suggested-work-duration"
+            />
           </div>
 
           <div className="space-y-2">

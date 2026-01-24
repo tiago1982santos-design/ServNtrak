@@ -240,6 +240,7 @@ export const suggestedWorks = pgTable("suggested_works", {
   category: text("category").notNull(), // 'Jardim', 'Piscina', 'Jacuzzi', 'Geral', 'Limpeza', 'Instalação'
   photos: text("photos").array(), // Photos showing where/what work is suggested
   estimatedCost: integer("estimated_cost"), // Optional cost estimate in cents
+  estimatedDurationMinutes: integer("estimated_duration_minutes"), // Optional duration estimate in minutes
   isAccepted: boolean("is_accepted").default(false), // Client accepted the suggestion
   isRejected: boolean("is_rejected").default(false), // Client rejected the suggestion
   isCompleted: boolean("is_completed").default(false), // Work has been done
