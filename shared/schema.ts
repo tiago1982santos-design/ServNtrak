@@ -214,6 +214,21 @@ export const employees = pgTable("employees", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Pending tasks - work to be done on future visits
+export const pendingTasks = pgTable("pending_tasks", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  clientId: integer("client_id").notNull(),
+  description: text("description").notNull(),
+  serviceType: text("service_type").notNull(), // 'Jardim', 'Piscina', 'Jacuzzi', 'Geral'
+  photos: text("photos").array(), // URLs of photos showing the issue
+  priority: text("priority").default("normal"), // 'low', 'normal', 'high', 'urgent'
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  serviceLogId: integer("service_log_id"), // Link to service log when completed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // === RELATIONS ===
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -226,6 +241,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   reminders: many(reminders),
   quickPhotos: many(quickPhotos),
   payments: many(clientPayments),
+  pendingTasks: many(pendingTasks),
 }));
 
 export const clientPaymentsRelations = relations(clientPayments, ({ one }) => ({
@@ -322,6 +338,17 @@ export const purchasesRelations = relations(purchases, ({ one }) => ({
   }),
 }));
 
+export const pendingTasksRelations = relations(pendingTasks, ({ one }) => ({
+  client: one(clients, {
+    fields: [pendingTasks.clientId],
+    references: [clients.id],
+  }),
+  serviceLog: one(serviceLogs, {
+    fields: [pendingTasks.serviceLogId],
+    references: [serviceLogs.id],
+  }),
+}));
+
 export const serviceVisitsRelations = relations(serviceVisits, ({ one, many }) => ({
   client: one(clients, {
     fields: [serviceVisits.clientId],
@@ -400,6 +427,7 @@ export const insertServiceVisitServiceSchema = createInsertSchema(serviceVisitSe
 export const insertFinancialConfigSchema = createInsertSchema(financialConfig).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 export const insertMonthlyDistributionSchema = createInsertSchema(monthlyDistributions).omit({ id: true, userId: true, createdAt: true, updatedAt: true });
 export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, userId: true, createdAt: true });
+export const insertPendingTaskSchema = createInsertSchema(pendingTasks).omit({ id: true, userId: true, createdAt: true, completedAt: true, serviceLogId: true });
 
 // === TYPES ===
 
@@ -487,4 +515,12 @@ export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 // Extended type for labor entry with employee details
 export type ServiceLogLaborEntryWithEmployee = ServiceLogLaborEntry & {
   employee?: Employee | null;
+};
+
+export type PendingTask = typeof pendingTasks.$inferSelect;
+export type InsertPendingTask = z.infer<typeof insertPendingTaskSchema>;
+
+// Extended type for pending task with client
+export type PendingTaskWithClient = PendingTask & {
+  client: Client;
 };

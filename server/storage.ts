@@ -4,7 +4,7 @@ import {
   serviceLogLaborEntries, serviceLogMaterialEntries,
   purchaseCategories, stores, purchases, clientPayments,
   serviceVisits, serviceVisitServices,
-  financialConfig, monthlyDistributions, employees,
+  financialConfig, monthlyDistributions, employees, pendingTasks,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
@@ -22,7 +22,8 @@ import {
   type ClientServiceStats,
   type InsertFinancialConfig, type FinancialConfig,
   type InsertMonthlyDistribution, type MonthlyDistribution,
-  type InsertEmployee, type Employee
+  type InsertEmployee, type Employee,
+  type InsertPendingTask, type PendingTask, type PendingTaskWithClient
 } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
@@ -118,6 +119,15 @@ export interface IStorage {
   updateEmployee(id: number, userId: string, updates: Partial<InsertEmployee>): Promise<Employee | undefined>;
   toggleEmployeeActive(id: number, userId: string): Promise<Employee | undefined>;
   deleteEmployee(id: number, userId: string): Promise<void>;
+
+  // Pending Tasks
+  getPendingTasks(userId: string, clientId?: number, includeCompleted?: boolean): Promise<PendingTaskWithClient[]>;
+  getPendingTask(id: number, userId: string): Promise<PendingTask | undefined>;
+  createPendingTask(task: InsertPendingTask & { userId: string }): Promise<PendingTask>;
+  updatePendingTask(id: number, userId: string, updates: Partial<InsertPendingTask>): Promise<PendingTask | undefined>;
+  completePendingTask(id: number, userId: string, serviceLogId?: number): Promise<PendingTask | undefined>;
+  deletePendingTask(id: number, userId: string): Promise<void>;
+  getPendingTasksCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -855,6 +865,73 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEmployee(id: number, userId: string): Promise<void> {
     await db.delete(employees).where(and(eq(employees.id, id), eq(employees.userId, userId)));
+  }
+
+  // Pending Tasks
+  async getPendingTasks(userId: string, clientId?: number, includeCompleted: boolean = false): Promise<PendingTaskWithClient[]> {
+    const conditions = [eq(pendingTasks.userId, userId)];
+    if (clientId) conditions.push(eq(pendingTasks.clientId, clientId));
+    if (!includeCompleted) conditions.push(eq(pendingTasks.isCompleted, false));
+
+    const tasks = await db
+      .select()
+      .from(pendingTasks)
+      .where(and(...conditions))
+      .orderBy(desc(pendingTasks.createdAt));
+
+    // Fetch client details for each task
+    const tasksWithClient: PendingTaskWithClient[] = [];
+    for (const task of tasks) {
+      const [client] = await db.select().from(clients).where(eq(clients.id, task.clientId));
+      if (client) {
+        tasksWithClient.push({ ...task, client });
+      }
+    }
+    return tasksWithClient;
+  }
+
+  async getPendingTask(id: number, userId: string): Promise<PendingTask | undefined> {
+    const [task] = await db.select().from(pendingTasks).where(and(eq(pendingTasks.id, id), eq(pendingTasks.userId, userId)));
+    return task;
+  }
+
+  async createPendingTask(task: InsertPendingTask & { userId: string }): Promise<PendingTask> {
+    const [newTask] = await db.insert(pendingTasks).values(task).returning();
+    return newTask;
+  }
+
+  async updatePendingTask(id: number, userId: string, updates: Partial<InsertPendingTask>): Promise<PendingTask | undefined> {
+    const [updated] = await db
+      .update(pendingTasks)
+      .set(updates)
+      .where(and(eq(pendingTasks.id, id), eq(pendingTasks.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async completePendingTask(id: number, userId: string, serviceLogId?: number): Promise<PendingTask | undefined> {
+    const [updated] = await db
+      .update(pendingTasks)
+      .set({ 
+        isCompleted: true, 
+        completedAt: new Date(),
+        serviceLogId: serviceLogId
+      })
+      .where(and(eq(pendingTasks.id, id), eq(pendingTasks.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async deletePendingTask(id: number, userId: string): Promise<void> {
+    await db.delete(pendingTasks).where(and(eq(pendingTasks.id, id), eq(pendingTasks.userId, userId)));
+  }
+
+  async getPendingTasksCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(pendingTasks)
+      .where(and(eq(pendingTasks.userId, userId), eq(pendingTasks.isCompleted, false)));
+    return result[0]?.count ?? 0;
   }
 }
 
