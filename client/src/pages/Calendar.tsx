@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useAppointments, useCreateAppointment } from "@/hooks/use-appointments";
 import { useClients } from "@/hooks/use-clients";
+import { useQuery } from "@tanstack/react-query";
 import { BottomNav } from "@/components/BottomNav";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { format, isSameDay, isAfter, startOfDay } from "date-fns";
 import { pt } from "date-fns/locale";
-import { Loader2, MapPin, Clock, CheckCircle2, ChevronRight, CalendarDays, Plus } from "lucide-react";
+import { Loader2, MapPin, Clock, CheckCircle2, ChevronRight, CalendarDays, Plus, AlertTriangle, ClipboardList } from "lucide-react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { BackButton } from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import type { PendingTaskWithClient } from "@shared/schema";
 
 const appointmentFormSchema = z.object({
   clientId: z.number().min(1, "Selecione um cliente"),
@@ -33,6 +36,15 @@ export default function CalendarPage() {
   const { data: appointments, isLoading } = useAppointments();
   const { data: clients } = useClients();
   const createApt = useCreateAppointment();
+  
+  const { data: allPendingTasks } = useQuery<PendingTaskWithClient[]>({
+    queryKey: ["/api/pending-tasks"],
+    queryFn: async () => {
+      const response = await fetch("/api/pending-tasks", { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to fetch pending tasks");
+      return response.json();
+    },
+  });
 
   const selectedDateAppointments = appointments?.filter(apt => 
     date && isSameDay(new Date(apt.date), date)
@@ -246,28 +258,73 @@ export default function CalendarPage() {
               <FormField
                 control={form.control}
                 name="clientId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <Select 
-                      onValueChange={(v) => field.onChange(Number(v))} 
-                      value={field.value ? field.value.toString() : ""}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="rounded-xl" data-testid="select-appointment-client">
-                          <SelectValue placeholder="Selecione um cliente" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clients?.map((client) => (
-                          <SelectItem key={client.id} value={client.id.toString()}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const clientPendingTasks = field.value ? 
+                    allPendingTasks?.filter(t => t.clientId === field.value) : [];
+                  const urgentTasks = clientPendingTasks?.filter(t => t.priority === 'urgent' || t.priority === 'high') || [];
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>Cliente</FormLabel>
+                      <Select 
+                        onValueChange={(v) => field.onChange(Number(v))} 
+                        value={field.value ? field.value.toString() : ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="rounded-xl" data-testid="select-appointment-client">
+                            <SelectValue placeholder="Selecione um cliente" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {clients?.map((client) => {
+                            const hasPendingTasks = allPendingTasks?.some(t => t.clientId === client.id);
+                            return (
+                              <SelectItem key={client.id} value={client.id.toString()}>
+                                <span className="flex items-center gap-2">
+                                  {client.name}
+                                  {hasPendingTasks && (
+                                    <ClipboardList className="w-3 h-3 text-amber-500" />
+                                  )}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      
+                      {clientPendingTasks && clientPendingTasks.length > 0 && (
+                        <div className="mt-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800" data-testid="alert-pending-tasks">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                                {clientPendingTasks.length} tarefa{clientPendingTasks.length !== 1 ? 's' : ''} pendente{clientPendingTasks.length !== 1 ? 's' : ''}
+                              </p>
+                              <ul className="mt-1 space-y-1">
+                                {clientPendingTasks.slice(0, 3).map(task => (
+                                  <li key={task.id} className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                                    <span className="w-1 h-1 rounded-full bg-amber-500" />
+                                    <span className="truncate">{task.description}</span>
+                                    {(task.priority === 'urgent' || task.priority === 'high') && (
+                                      <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-red-100 text-red-600">
+                                        {task.priority === 'urgent' ? 'Urgente' : 'Alta'}
+                                      </Badge>
+                                    )}
+                                  </li>
+                                ))}
+                                {clientPendingTasks.length > 3 && (
+                                  <li className="text-xs text-amber-600 dark:text-amber-400">
+                                    +{clientPendingTasks.length - 3} mais...
+                                  </li>
+                                )}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
