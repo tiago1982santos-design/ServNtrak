@@ -241,8 +241,10 @@ export const suggestedWorks = pgTable("suggested_works", {
   photos: text("photos").array(), // Photos showing where/what work is suggested
   estimatedCost: integer("estimated_cost"), // Optional cost estimate in cents
   isAccepted: boolean("is_accepted").default(false), // Client accepted the suggestion
+  isRejected: boolean("is_rejected").default(false), // Client rejected the suggestion
   isCompleted: boolean("is_completed").default(false), // Work has been done
   acceptedAt: timestamp("accepted_at"),
+  rejectedAt: timestamp("rejected_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -447,7 +449,7 @@ export const insertMonthlyDistributionSchema = createInsertSchema(monthlyDistrib
 export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, userId: true, createdAt: true });
 export const insertPendingTaskSchema = createInsertSchema(pendingTasks).omit({ id: true, userId: true, createdAt: true, completedAt: true, serviceLogId: true });
 
-export const insertSuggestedWorkSchema = createInsertSchema(suggestedWorks).omit({ id: true, userId: true, createdAt: true, acceptedAt: true, completedAt: true });
+export const insertSuggestedWorkSchema = createInsertSchema(suggestedWorks).omit({ id: true, userId: true, createdAt: true, acceptedAt: true, rejectedAt: true, completedAt: true });
 
 // === TYPES ===
 

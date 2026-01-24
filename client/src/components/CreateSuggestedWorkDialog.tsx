@@ -127,7 +127,7 @@ export function CreateSuggestedWorkDialog({ open, onOpenChange, clientId, client
       description: description.trim(),
       notes: notes.trim() || null,
       category,
-      estimatedCost: estimatedCost ? parseFloat(estimatedCost) : null,
+      estimatedCost: estimatedCost ? Math.round(parseFloat(estimatedCost) * 100) : null,
       photos,
     });
   };

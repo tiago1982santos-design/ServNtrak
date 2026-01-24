@@ -96,11 +96,15 @@ export default function ClientDetail() {
   });
   
   const updateSuggestedWork = useMutation({
-    mutationFn: async ({ workId, isAccepted, isCompleted }: { workId: number; isAccepted?: boolean; isCompleted?: boolean }) => {
+    mutationFn: async ({ workId, isAccepted, isRejected, isCompleted }: { workId: number; isAccepted?: boolean; isRejected?: boolean; isCompleted?: boolean }) => {
       const body: Record<string, any> = {};
       if (isAccepted !== undefined) {
         body.isAccepted = isAccepted;
         body.acceptedAt = isAccepted ? new Date().toISOString() : null;
+      }
+      if (isRejected !== undefined) {
+        body.isRejected = isRejected;
+        body.rejectedAt = isRejected ? new Date().toISOString() : null;
       }
       if (isCompleted !== undefined) {
         body.isCompleted = isCompleted;
@@ -488,9 +492,9 @@ export default function ClientDetail() {
           <h3 className="font-bold text-lg flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-yellow-500" />
             Trabalhos Sugeridos
-            {suggestedWorks && suggestedWorks.filter(w => !w.isAccepted && !w.isCompleted).length > 0 && (
+            {suggestedWorks && suggestedWorks.filter(w => !w.isAccepted && !w.isRejected).length > 0 && (
               <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
-                {suggestedWorks.filter(w => !w.isAccepted && !w.isCompleted).length}
+                {suggestedWorks.filter(w => !w.isAccepted && !w.isRejected).length}
               </Badge>
             )}
           </h3>
@@ -506,9 +510,9 @@ export default function ClientDetail() {
           </Button>
         </div>
         
-        {suggestedWorks && suggestedWorks.filter(w => !w.isAccepted && !w.isCompleted).length > 0 ? (
+        {suggestedWorks && suggestedWorks.filter(w => !w.isAccepted && !w.isRejected).length > 0 ? (
           <div className="space-y-3">
-            {suggestedWorks.filter(w => !w.isAccepted && !w.isCompleted).map((work) => {
+            {suggestedWorks.filter(w => !w.isAccepted && !w.isRejected).map((work) => {
               const CategoryIcon = work.category === 'Plantação' || work.category === 'Poda' ? Leaf :
                                    work.category === 'Piscina' ? Waves :
                                    work.category === 'Jacuzzi' ? ThermometerSun : Wrench;
@@ -550,7 +554,7 @@ export default function ClientDetail() {
                     <div className="flex items-center gap-1 mb-3">
                       <Euro className="w-4 h-4 text-green-600" />
                       <span className="text-sm font-semibold text-green-600">
-                        {work.estimatedCost.toFixed(2)}
+                        {(work.estimatedCost / 100).toFixed(2)}
                       </span>
                       <span className="text-xs text-muted-foreground">(estimado)</span>
                     </div>
@@ -599,7 +603,7 @@ export default function ClientDetail() {
                       size="sm"
                       variant="outline"
                       className="gap-1 text-red-600 border-red-200 hover:bg-red-50"
-                      onClick={() => updateSuggestedWork.mutate({ workId: work.id, isCompleted: true })}
+                      onClick={() => updateSuggestedWork.mutate({ workId: work.id, isRejected: true })}
                       data-testid={`button-reject-suggestion-${work.id}`}
                     >
                       <ThumbsDown className="w-4 h-4" />
