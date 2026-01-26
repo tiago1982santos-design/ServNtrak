@@ -39,6 +39,8 @@ export function CreateClientDialog() {
       hasPool: false,
       hasJacuzzi: false,
       gardenVisitFrequency: "seasonal",
+      poolVisitFrequency: "seasonal",
+      jacuzziVisitFrequency: "seasonal",
       latitude: undefined,
       longitude: undefined,
       billingType: "monthly",
@@ -231,10 +233,17 @@ export function CreateClientDialog() {
                             </Label>
                           </div>
                           <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'once_monthly' ? 'border-green-500 bg-green-100/50' : 'bg-background/50'}`}>
-                            <RadioGroupItem value="once_monthly" id="once_monthly" className="mt-0.5" />
-                            <Label htmlFor="once_monthly" className="flex flex-col cursor-pointer">
+                            <RadioGroupItem value="once_monthly" id="garden_once_monthly" className="mt-0.5" />
+                            <Label htmlFor="garden_once_monthly" className="flex flex-col cursor-pointer">
                               <span className="text-sm font-medium">Acordo Especial</span>
                               <span className="text-xs text-muted-foreground">1 visita por mês durante todo o ano</span>
+                            </Label>
+                          </div>
+                          <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'on_demand' ? 'border-green-500 bg-green-100/50' : 'bg-background/50'}`}>
+                            <RadioGroupItem value="on_demand" id="garden_on_demand" className="mt-0.5" />
+                            <Label htmlFor="garden_on_demand" className="flex flex-col cursor-pointer">
+                              <span className="text-sm font-medium">Quando Necessário</span>
+                              <span className="text-xs text-muted-foreground">Sem acordo fixo - serviço a pedido</span>
                             </Label>
                           </div>
                         </RadioGroup>
@@ -344,6 +353,50 @@ export function CreateClientDialog() {
                     Volume: {((form.watch("poolLength") || 0) * (form.watch("poolWidth") || 0) * ((form.watch("poolMinDepth") || 0) + (form.watch("poolMaxDepth") || 0)) / 2).toFixed(1)} m³
                   </div>
                 )}
+                
+                <div className="pt-3 border-t border-blue-200">
+                  <FormLabel className="flex items-center gap-2 text-blue-700 mb-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Frequência de Visitas
+                  </FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="poolVisitFrequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value || "seasonal"}
+                            className="grid grid-cols-1 gap-2"
+                          >
+                            <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'seasonal' ? 'border-blue-500 bg-blue-100/50' : 'bg-background/50'}`}>
+                              <RadioGroupItem value="seasonal" id="pool_seasonal" className="mt-0.5" />
+                              <Label htmlFor="pool_seasonal" className="flex flex-col cursor-pointer">
+                                <span className="text-sm font-medium">Sazonal (padrão)</span>
+                                <span className="text-xs text-muted-foreground">Época alta: 1x/semana | Época baixa: 2x/mês</span>
+                              </Label>
+                            </div>
+                            <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'once_monthly' ? 'border-blue-500 bg-blue-100/50' : 'bg-background/50'}`}>
+                              <RadioGroupItem value="once_monthly" id="pool_once_monthly" className="mt-0.5" />
+                              <Label htmlFor="pool_once_monthly" className="flex flex-col cursor-pointer">
+                                <span className="text-sm font-medium">Acordo Especial</span>
+                                <span className="text-xs text-muted-foreground">1 visita por mês durante todo o ano</span>
+                              </Label>
+                            </div>
+                            <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'on_demand' ? 'border-blue-500 bg-blue-100/50' : 'bg-background/50'}`}>
+                              <RadioGroupItem value="on_demand" id="pool_on_demand" className="mt-0.5" />
+                              <Label htmlFor="pool_on_demand" className="flex flex-col cursor-pointer">
+                                <span className="text-sm font-medium">Quando Necessário</span>
+                                <span className="text-xs text-muted-foreground">Sem acordo fixo - serviço a pedido</span>
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
             )}
 
@@ -423,6 +476,50 @@ export function CreateClientDialog() {
                     Volume: {((form.watch("jacuzziLength") || 0) * (form.watch("jacuzziWidth") || 0) * (form.watch("jacuzziDepth") || 0)).toFixed(1)} m³
                   </div>
                 )}
+                
+                <div className="pt-3 border-t border-orange-200">
+                  <FormLabel className="flex items-center gap-2 text-orange-700 mb-2">
+                    <CalendarDays className="w-4 h-4" />
+                    Frequência de Visitas
+                  </FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="jacuzziVisitFrequency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value || "seasonal"}
+                            className="grid grid-cols-1 gap-2"
+                          >
+                            <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'seasonal' ? 'border-orange-500 bg-orange-100/50' : 'bg-background/50'}`}>
+                              <RadioGroupItem value="seasonal" id="jacuzzi_seasonal" className="mt-0.5" />
+                              <Label htmlFor="jacuzzi_seasonal" className="flex flex-col cursor-pointer">
+                                <span className="text-sm font-medium">Sazonal (padrão)</span>
+                                <span className="text-xs text-muted-foreground">Época alta: 1x/semana | Época baixa: 2x/mês</span>
+                              </Label>
+                            </div>
+                            <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'once_monthly' ? 'border-orange-500 bg-orange-100/50' : 'bg-background/50'}`}>
+                              <RadioGroupItem value="once_monthly" id="jacuzzi_once_monthly" className="mt-0.5" />
+                              <Label htmlFor="jacuzzi_once_monthly" className="flex flex-col cursor-pointer">
+                                <span className="text-sm font-medium">Acordo Especial</span>
+                                <span className="text-xs text-muted-foreground">1 visita por mês durante todo o ano</span>
+                              </Label>
+                            </div>
+                            <div className={`flex items-start space-x-3 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'on_demand' ? 'border-orange-500 bg-orange-100/50' : 'bg-background/50'}`}>
+                              <RadioGroupItem value="on_demand" id="jacuzzi_on_demand" className="mt-0.5" />
+                              <Label htmlFor="jacuzzi_on_demand" className="flex flex-col cursor-pointer">
+                                <span className="text-sm font-medium">Quando Necessário</span>
+                                <span className="text-xs text-muted-foreground">Sem acordo fixo - serviço a pedido</span>
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
             )}
 

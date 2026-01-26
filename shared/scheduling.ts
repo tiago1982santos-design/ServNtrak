@@ -94,10 +94,16 @@ export interface VisitSchedule {
   type: "Garden" | "Pool" | "Jacuzzi";
   visitsPerMonth: number;
   description: string;
+  isOnDemand?: boolean;
 }
 
 export function getGardenVisitsPerMonth(client: Client, season: Season): number {
   if (!client.hasGarden) return 0;
+  
+  // On demand - no scheduled visits
+  if (client.gardenVisitFrequency === "on_demand") {
+    return 0;
+  }
   
   // If client has special "once monthly" agreement
   if (client.gardenVisitFrequency === "once_monthly") {
@@ -108,14 +114,38 @@ export function getGardenVisitsPerMonth(client: Client, season: Season): number 
   return season === "high" ? 2 : 1;
 }
 
-export function getPoolVisitsPerMonth(season: Season): number {
+export function getPoolVisitsPerMonth(client: Client, season: Season): number {
+  if (!client.hasPool) return 0;
+  
+  // On demand - no scheduled visits
+  if (client.poolVisitFrequency === "on_demand") {
+    return 0;
+  }
+  
+  // Once monthly agreement
+  if (client.poolVisitFrequency === "once_monthly") {
+    return 1;
+  }
+  
   // High season: 1x per week = 4 per month
   // Low season: 2x per month
   return season === "high" ? 4 : 2;
 }
 
-export function getJacuzziVisitsPerMonth(season: Season): number {
-  // Same as pool
+export function getJacuzziVisitsPerMonth(client: Client, season: Season): number {
+  if (!client.hasJacuzzi) return 0;
+  
+  // On demand - no scheduled visits
+  if (client.jacuzziVisitFrequency === "on_demand") {
+    return 0;
+  }
+  
+  // Once monthly agreement
+  if (client.jacuzziVisitFrequency === "once_monthly") {
+    return 1;
+  }
+  
+  // Same as pool: High season: 1x per week = 4 per month, Low season: 2x per month
   return season === "high" ? 4 : 2;
 }
 
@@ -124,38 +154,74 @@ export function getClientVisitSchedule(client: Client, date: Date = new Date()):
   const schedules: VisitSchedule[] = [];
   
   if (client.hasGarden) {
-    const visits = getGardenVisitsPerMonth(client, season);
+    const isOnDemand = client.gardenVisitFrequency === "on_demand";
     const isSpecial = client.gardenVisitFrequency === "once_monthly";
+    const visits = getGardenVisitsPerMonth(client, season);
+    
+    let description: string;
+    if (isOnDemand) {
+      description = "Quando necessário";
+    } else if (isSpecial) {
+      description = "1 visita/mês (acordo especial)";
+    } else {
+      description = season === "high" 
+        ? "2 visitas/mês (época alta)"
+        : "1 visita/mês (época baixa)";
+    }
+    
     schedules.push({
       type: "Garden",
       visitsPerMonth: visits,
-      description: isSpecial 
-        ? "1 visita/mês (acordo especial)"
-        : season === "high" 
-          ? "2 visitas/mês (época alta)"
-          : "1 visita/mês (época baixa)",
+      description,
+      isOnDemand,
     });
   }
   
   if (client.hasPool) {
-    const visits = getPoolVisitsPerMonth(season);
+    const isOnDemand = client.poolVisitFrequency === "on_demand";
+    const isSpecial = client.poolVisitFrequency === "once_monthly";
+    const visits = getPoolVisitsPerMonth(client, season);
+    
+    let description: string;
+    if (isOnDemand) {
+      description = "Quando necessário";
+    } else if (isSpecial) {
+      description = "1 visita/mês (acordo especial)";
+    } else {
+      description = season === "high" 
+        ? "1 visita/semana (época alta)"
+        : "2 visitas/mês (época baixa)";
+    }
+    
     schedules.push({
       type: "Pool",
       visitsPerMonth: visits,
-      description: season === "high" 
-        ? "1 visita/semana (época alta)"
-        : "2 visitas/mês (época baixa)",
+      description,
+      isOnDemand,
     });
   }
   
   if (client.hasJacuzzi) {
-    const visits = getJacuzziVisitsPerMonth(season);
+    const isOnDemand = client.jacuzziVisitFrequency === "on_demand";
+    const isSpecial = client.jacuzziVisitFrequency === "once_monthly";
+    const visits = getJacuzziVisitsPerMonth(client, season);
+    
+    let description: string;
+    if (isOnDemand) {
+      description = "Quando necessário";
+    } else if (isSpecial) {
+      description = "1 visita/mês (acordo especial)";
+    } else {
+      description = season === "high" 
+        ? "1 visita/semana (época alta)"
+        : "2 visitas/mês (época baixa)";
+    }
+    
     schedules.push({
       type: "Jacuzzi",
       visitsPerMonth: visits,
-      description: season === "high" 
-        ? "1 visita/semana (época alta)"
-        : "2 visitas/mês (época baixa)",
+      description,
+      isOnDemand,
     });
   }
   

@@ -13,10 +13,11 @@ import { z } from "zod";
 import { insertReminderSchema } from "@shared/schema";
 import { format, isPast, isToday, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { pt } from "date-fns/locale";
-import { Loader2, Plus, Bell, Clock, Trash2, CheckCircle2, AlertCircle, Leaf, Waves, ThermometerSun, Wrench } from "lucide-react";
+import { Loader2, Plus, Bell, Clock, Trash2, CheckCircle2, AlertCircle, Leaf, Waves, ThermometerSun, Wrench, Phone, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { BackButton } from "@/components/BackButton";
+import { useLocation } from "wouter";
 
 const frequencyLabels: Record<string, string> = {
   weekly: "Semanal",
@@ -53,12 +54,34 @@ function getNextDueDate(frequency: string, fromDate: Date = new Date()): Date {
 
 export default function Reminders() {
   const { data: reminders, isLoading } = useReminders();
+  const { data: clients } = useClients();
   const deleteReminder = useDeleteReminder();
   const updateReminder = useUpdateReminder();
+  const [, navigate] = useLocation();
 
   const overdueReminders = reminders?.filter(r => r.isActive && isPast(new Date(r.nextDue)) && !isToday(new Date(r.nextDue))) || [];
   const todayReminders = reminders?.filter(r => r.isActive && isToday(new Date(r.nextDue))) || [];
   const upcomingReminders = reminders?.filter(r => r.isActive && !isPast(new Date(r.nextDue)) && !isToday(new Date(r.nextDue))) || [];
+
+  const onDemandClients = clients?.filter(c => 
+    c.gardenVisitFrequency === "on_demand" || 
+    c.poolVisitFrequency === "on_demand" || 
+    c.jacuzziVisitFrequency === "on_demand"
+  ) || [];
+
+  const getOnDemandServices = (client: typeof clients extends (infer T)[] | undefined ? T : never) => {
+    const services: { type: string; icon: typeof Leaf; color: string }[] = [];
+    if (client.hasGarden && client.gardenVisitFrequency === "on_demand") {
+      services.push({ type: "Jardim", icon: Leaf, color: "text-green-600" });
+    }
+    if (client.hasPool && client.poolVisitFrequency === "on_demand") {
+      services.push({ type: "Piscina", icon: Waves, color: "text-blue-600" });
+    }
+    if (client.hasJacuzzi && client.jacuzziVisitFrequency === "on_demand") {
+      services.push({ type: "Jacuzzi", icon: ThermometerSun, color: "text-orange-600" });
+    }
+    return services;
+  };
 
   const handleComplete = async (reminder: typeof reminders extends (infer T)[] | undefined ? T : never) => {
     const nextDue = getNextDueDate(reminder.frequency, new Date());
@@ -87,6 +110,55 @@ export default function Reminders() {
           </div>
         ) : (
           <>
+            {onDemandClients.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Phone className="w-4 h-4 text-purple-500" />
+                  <h2 className="text-sm font-semibold text-purple-600 uppercase tracking-wider">Verificar Mensalmente</h2>
+                  <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">{onDemandClients.length}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">Clientes sem acordo fixo - verificar se precisam de serviço</p>
+                <div className="space-y-2">
+                  {onDemandClients.map((client) => {
+                    const services = getOnDemandServices(client);
+                    return (
+                      <div 
+                        key={client.id}
+                        className="bg-purple-50/50 border border-purple-200/50 rounded-xl p-3 cursor-pointer hover-elevate"
+                        onClick={() => navigate(`/clients/${client.id}`)}
+                        data-testid={`on-demand-client-${client.id}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                              <Eye className="w-4 h-4 text-purple-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{client.name}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {services.map((service, idx) => {
+                                  const ServiceIcon = service.icon;
+                                  return (
+                                    <span key={idx} className={`flex items-center gap-1 text-xs ${service.color}`}>
+                                      <ServiceIcon className="w-3 h-3" />
+                                      {service.type}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">
+                            Quando necessário
+                          </Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {overdueReminders.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">

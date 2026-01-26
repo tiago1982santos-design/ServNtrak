@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useClients } from "@/hooks/use-clients";
 import { BottomNav } from "@/components/BottomNav";
 import { Link } from "wouter";
-import { Search, MapPin, Leaf, Waves, ThermometerSun, Loader2, Phone, Users, Euro, Clock, ChevronRight, ArrowUpDown, CheckCircle, AlertCircle, Calendar } from "lucide-react";
+import { Search, MapPin, Leaf, Waves, ThermometerSun, Loader2, Phone, Users, Euro, Clock, ChevronRight, ArrowUpDown, CheckCircle, AlertCircle, Calendar, PhoneCall } from "lucide-react";
 import type { Client, ClientPaymentWithClient } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -307,6 +307,12 @@ export default function Clients() {
                             <Badge variant="secondary" className="text-[10px] px-2 py-0.5 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-0">
                               <ThermometerSun className="w-2.5 h-2.5 mr-1" />
                               Jacuzzi
+                            </Badge>
+                          )}
+                          {(client.gardenVisitFrequency === "on_demand" || client.poolVisitFrequency === "on_demand" || client.jacuzziVisitFrequency === "on_demand") && (
+                            <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-purple-300 text-purple-600 dark:border-purple-600 dark:text-purple-400">
+                              <PhoneCall className="w-2.5 h-2.5 mr-1" />
+                              A pedido
                             </Badge>
                           )}
                         </div>

@@ -23,8 +23,10 @@ export const clients = pgTable("clients", {
   hasGarden: boolean("has_garden").default(false),
   hasPool: boolean("has_pool").default(false),
   hasJacuzzi: boolean("has_jacuzzi").default(false),
-  // Garden visit frequency: 'seasonal' (2x high season, 1x low) or 'once_monthly' (1x all year)
+  // Visit frequency options: 'seasonal' (standard seasonal), 'once_monthly' (1x all year), 'on_demand' (quando necessário)
   gardenVisitFrequency: text("garden_visit_frequency").default("seasonal"),
+  poolVisitFrequency: text("pool_visit_frequency").default("seasonal"),
+  jacuzziVisitFrequency: text("jacuzzi_visit_frequency").default("seasonal"),
   // Pool dimensions in meters
   poolLength: doublePrecision("pool_length"),
   poolWidth: doublePrecision("pool_width"),
