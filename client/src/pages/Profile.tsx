@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { 
   LogOut, 
   User, 
@@ -22,7 +23,10 @@ import {
   Settings,
   Fingerprint,
   Loader2,
-  Trash2
+  Trash2,
+  KeyRound,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Link } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -234,6 +238,166 @@ function BiometricSection() {
   );
 }
 
+function PasswordSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+
+  const { data: passwordInfo, isLoading } = useQuery<{ hasPassword: boolean }>({
+    queryKey: ["/api/auth/has-password"],
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: { currentPassword?: string; newPassword: string }) => {
+      const res = await fetch("/api/auth/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: data.message });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/has-password"] });
+      setShowForm(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (newPassword.length < 6) {
+      toast({ title: "Erro", description: "A palavra-passe deve ter pelo menos 6 caracteres", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Erro", description: "As palavras-passe não coincidem", variant: "destructive" });
+      return;
+    }
+    mutation.mutate({
+      currentPassword: passwordInfo?.hasPassword ? currentPassword : undefined,
+      newPassword,
+    });
+  };
+
+  if (isLoading) return null;
+
+  const hasPassword = passwordInfo?.hasPassword;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Segurança</h3>
+      <div className="glass-card p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <KeyRound className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-sm">{hasPassword ? "Alterar Palavra-passe" : "Definir Palavra-passe"}</p>
+            <p className="text-xs text-muted-foreground">
+              {hasPassword ? "Atualizar a sua palavra-passe de acesso" : "Adicionar palavra-passe para login com e-mail"}
+            </p>
+          </div>
+        </div>
+
+        {!showForm ? (
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => setShowForm(true)}
+            data-testid="button-toggle-password-form"
+          >
+            <KeyRound className="w-4 h-4" />
+            {hasPassword ? "Alterar palavra-passe" : "Definir palavra-passe"}
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            {hasPassword && (
+              <div className="relative">
+                <Input
+                  type={showCurrent ? "text" : "password"}
+                  placeholder="Palavra-passe atual"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  data-testid="input-current-password"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                >
+                  {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            )}
+            <div className="relative">
+              <Input
+                type={showNew ? "text" : "password"}
+                placeholder="Nova palavra-passe"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                data-testid="input-new-password"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                onClick={() => setShowNew(!showNew)}
+              >
+                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <Input
+              type="password"
+              placeholder="Confirmar nova palavra-passe"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              data-testid="input-confirm-password"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowForm(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                }}
+                data-testid="button-cancel-password"
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1 gap-2"
+                onClick={handleSubmit}
+                disabled={mutation.isPending}
+                data-testid="button-save-password"
+              >
+                {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Guardar
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Profile() {
   const { user, logout } = useAuth();
 
@@ -295,6 +459,8 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        <PasswordSection />
 
         <BiometricSection />
 

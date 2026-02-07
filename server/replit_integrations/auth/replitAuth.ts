@@ -100,7 +100,7 @@ export async function setupAuth(app: Express) {
             return done(null, false, { message: "Utilizador não encontrado" });
           }
           if (!user.passwordHash) {
-            return done(null, false, { message: "Esta conta utiliza login social. Use o botão correspondente." });
+            return done(null, false, { message: "Esta conta foi criada com login social. Defina uma palavra-passe no perfil ou use o botão de login social." });
           }
           const isValid = await bcrypt.compare(password, user.passwordHash);
           if (!isValid) {
@@ -247,6 +247,50 @@ export async function setupAuth(app: Express) {
         return res.json({ message: "Sessão terminada" });
       });
     });
+  });
+
+  const setPasswordSchema = z.object({
+    currentPassword: z.string().optional(),
+    newPassword: z.string().min(6, "A palavra-passe deve ter pelo menos 6 caracteres"),
+  });
+
+  app.post("/api/auth/set-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const input = setPasswordSchema.parse(req.body);
+      const userId = req.user.id;
+      const user = await authStorage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "Utilizador não encontrado" });
+
+      if (user.passwordHash) {
+        if (!input.currentPassword) {
+          return res.status(400).json({ message: "Palavra-passe atual é obrigatória" });
+        }
+        const isValid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+        if (!isValid) {
+          return res.status(400).json({ message: "Palavra-passe atual incorreta" });
+        }
+      }
+
+      const newHash = await bcrypt.hash(input.newPassword, 12);
+      await authStorage.updateUserPassword(userId, newHash);
+      return res.json({ message: "Palavra-passe definida com sucesso" });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("Set password error:", err);
+      return res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  app.get("/api/auth/has-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = await authStorage.getUser(req.user.id);
+      if (!user) return res.status(404).json({ message: "Utilizador não encontrado" });
+      return res.json({ hasPassword: !!user.passwordHash });
+    } catch (err) {
+      return res.status(500).json({ message: "Erro interno do servidor" });
+    }
   });
 
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
