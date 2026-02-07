@@ -48,7 +48,7 @@ TrackServ é uma aplicação mobile-first para gestão de serviços de manutenç
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
 - **API Design**: RESTful endpoints defined in `shared/routes.ts` with Zod schemas for type-safe request/response validation
-- **Authentication**: Replit Auth (OpenID Connect) with Passport.js, session-based with PostgreSQL session store
+- **Authentication**: Custom auth with Passport.js (email/password via passport-local + Google OAuth via passport-google-oauth20), session-based with PostgreSQL session store. Apple and Facebook OAuth prepared for future activation.
 - **Database Access**: Drizzle ORM with PostgreSQL
 
 ### Data Layer
@@ -56,7 +56,7 @@ TrackServ é uma aplicação mobile-first para gestão de serviços de manutenç
 - **ORM**: Drizzle ORM with schema defined in `shared/schema.ts`
 - **Schema Migration**: Drizzle Kit (`db:push` command)
 - **Core Tables**:
-  - `users` - User accounts (managed by Replit Auth)
+  - `users` - User accounts (custom auth with email/password and OAuth support)
   - `sessions` - Session storage for authentication
   - `clients` - Customer records with service type flags (garden/pool/jacuzzi)
   - `appointments` - Scheduled service appointments
@@ -74,10 +74,14 @@ TrackServ é uma aplicação mobile-first para gestão de serviços de manutenç
 - **Active Status**: Employees can be deactivated when they leave (preserved for historical records)
 
 ### Authentication Flow
-- Uses Replit Auth blueprint integration in `server/replit_integrations/auth/`
+- Custom auth system in `server/replit_integrations/auth/` using Passport.js
+- **Email/Password**: passport-local strategy with bcryptjs hashing (cost 12)
+- **Google OAuth**: passport-google-oauth20 (requires GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET env vars)
+- **Apple/Facebook OAuth**: Prepared for future activation (buttons shown as "Em breve")
 - Session storage in PostgreSQL via `connect-pg-simple`
 - Protected API routes use `requireAuth` middleware checking `req.isAuthenticated()`
-- User data synced to local `users` table on login via upsert
+- User ID accessed via `(req.user as any).id` in route handlers
+- Login page supports: social login buttons, email/password login, account registration
 
 ### Shared Code Pattern
 - `shared/schema.ts` - Drizzle table definitions and Zod insert schemas
@@ -90,12 +94,14 @@ TrackServ é uma aplicação mobile-first para gestão de serviços de manutenç
 - **PostgreSQL**: Primary database, connection via `DATABASE_URL` environment variable
 
 ### Authentication
-- **Replit Auth**: OpenID Connect provider at `https://replit.com/oidc`
-- **Required Environment Variables**: `DATABASE_URL`, `SESSION_SECRET`, `REPL_ID`, `ISSUER_URL`
+- **Custom Auth**: Email/password + OAuth providers
+- **Required Environment Variables**: `DATABASE_URL`, `SESSION_SECRET`
+- **Optional Environment Variables**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (for Google OAuth)
 
 ### Key NPM Packages
 - `drizzle-orm` / `drizzle-kit` - Database ORM and migrations
-- `passport` / `openid-client` - Authentication
+- `passport` / `passport-local` / `passport-google-oauth20` - Authentication
+- `bcryptjs` - Password hashing
 - `express-session` / `connect-pg-simple` - Session management
 - `react-day-picker` / `date-fns` - Calendar functionality
 - `@tanstack/react-query` - Data fetching and caching
