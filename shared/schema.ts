@@ -39,9 +39,10 @@ export const clients = pgTable("clients", {
   // Estimated service duration in minutes for scheduling
   serviceDurationMinutes: integer("service_duration_minutes").default(60),
   notes: text("notes"),
-  billingType: text("billing_type").default("monthly"), // 'monthly' or 'hourly'
+  billingType: text("billing_type").default("monthly"), // 'monthly', 'hourly', or 'per_visit'
   monthlyRate: doublePrecision("monthly_rate"), // Fixed monthly amount in euros
   hourlyRate: doublePrecision("hourly_rate"), // Hourly rate in euros
+  perVisitRate: doublePrecision("per_visit_rate"), // Fixed rate per visit in euros
   // Payment method: 'cash', 'bank_transfer', 'mbway'
   paymentMethod: text("payment_method"),
   // Day of month when scheduled transfer is made (only for bank_transfer)

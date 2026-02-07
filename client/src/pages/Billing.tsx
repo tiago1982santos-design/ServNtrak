@@ -1,6 +1,6 @@
 import { useClients } from "@/hooks/use-clients";
 import { BottomNav } from "@/components/BottomNav";
-import { Loader2, Euro, Clock, Users } from "lucide-react";
+import { Loader2, Euro, Clock, Users, CalendarDays } from "lucide-react";
 import { Link } from "wouter";
 import { BackButton } from "@/components/BackButton";
 
@@ -9,6 +9,7 @@ export default function Billing() {
 
   const monthlyClients = clients?.filter(c => c.billingType === "monthly" && c.monthlyRate) || [];
   const hourlyClients = clients?.filter(c => c.billingType === "hourly" && c.hourlyRate) || [];
+  const perVisitClients = clients?.filter(c => c.billingType === "per_visit" && c.perVisitRate) || [];
   
   const totalMonthly = monthlyClients.reduce((sum, c) => sum + (c.monthlyRate || 0), 0);
 
@@ -118,6 +119,55 @@ export default function Billing() {
             ) : (
               <div className="bg-card rounded-2xl p-6 text-center border border-border/50">
                 <p className="text-muted-foreground">Sem clientes a cobrar por hora</p>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <CalendarDays className="w-4 h-4 text-amber-700 dark:text-amber-400" />
+                </div>
+                <h2 className="font-bold text-lg text-foreground">Valor por Visita</h2>
+              </div>
+              <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">{perVisitClients.length} clientes</span>
+            </div>
+
+            {perVisitClients.length > 0 ? (
+              <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cliente</th>
+                        <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">€/Visita</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {perVisitClients.map((client, idx) => (
+                        <tr 
+                          key={client.id} 
+                          className={`hover:bg-muted/30 transition-colors ${idx !== perVisitClients.length - 1 ? 'border-b border-border/50' : ''}`}
+                          data-testid={`billing-per-visit-client-${client.id}`}
+                        >
+                          <td className="px-4 py-3">
+                            <Link href={`/clients/${client.id}`} className="font-medium text-foreground hover:text-primary">
+                              {client.name}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="font-bold text-amber-700 dark:text-amber-400">{client.perVisitRate?.toFixed(2)} €</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-card rounded-2xl p-6 text-center border border-border/50">
+                <p className="text-muted-foreground">Sem clientes a cobrar por visita</p>
               </div>
             )}
           </section>

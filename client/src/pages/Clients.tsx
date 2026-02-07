@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useClients } from "@/hooks/use-clients";
 import { BottomNav } from "@/components/BottomNav";
 import { Link } from "wouter";
-import { Search, MapPin, Leaf, Waves, ThermometerSun, Loader2, Phone, Users, Euro, Clock, ChevronRight, ArrowUpDown, CheckCircle, AlertCircle, Calendar, PhoneCall } from "lucide-react";
+import { Search, MapPin, Leaf, Waves, ThermometerSun, Loader2, Phone, Users, Euro, Clock, ChevronRight, ArrowUpDown, CheckCircle, AlertCircle, Calendar, PhoneCall, CalendarDays } from "lucide-react";
 import type { Client, ClientPaymentWithClient } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type ServiceFilter = "all" | "garden" | "pool" | "jacuzzi";
-type BillingFilter = "all" | "monthly" | "hourly";
+type BillingFilter = "all" | "monthly" | "hourly" | "per_visit";
 type SortOption = "name" | "value" | "recent";
 
 export default function Clients() {
@@ -96,8 +96,8 @@ export default function Clients() {
     result.sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
       if (sortBy === "value") {
-        const aValue = a.monthlyRate || a.hourlyRate || 0;
-        const bValue = b.monthlyRate || b.hourlyRate || 0;
+        const aValue = a.monthlyRate || a.hourlyRate || a.perVisitRate || 0;
+        const bValue = b.monthlyRate || b.hourlyRate || b.perVisitRate || 0;
         return bValue - aValue;
       }
       if (sortBy === "recent") {
@@ -119,6 +119,9 @@ export default function Clients() {
     }
     if (client.billingType === 'hourly' && client.hourlyRate) {
       return `${client.hourlyRate}€/hora`;
+    }
+    if (client.billingType === 'per_visit' && client.perVisitRate) {
+      return `${client.perVisitRate}€/visita`;
     }
     return null;
   };
@@ -229,6 +232,10 @@ export default function Clients() {
                 <Clock className="w-3 h-3 mr-2" />
                 Por Hora {billingFilter === "hourly" && "✓"}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBillingFilter("per_visit")} data-testid="billing-per-visit">
+                <CalendarDays className="w-3 h-3 mr-2" />
+                Por Visita {billingFilter === "per_visit" && "✓"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -277,11 +284,9 @@ export default function Clients() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {getClientValue(client) && (
                             <Badge variant="secondary" className="text-xs font-semibold bg-primary/10 text-primary border-0">
-                              {client.billingType === 'monthly' ? (
-                                <Euro className="w-3 h-3 mr-1" />
-                              ) : (
-                                <Clock className="w-3 h-3 mr-1" />
-                              )}
+                              {client.billingType === 'monthly' && <Euro className="w-3 h-3 mr-1" />}
+                              {client.billingType === 'hourly' && <Clock className="w-3 h-3 mr-1" />}
+                              {client.billingType === 'per_visit' && <CalendarDays className="w-3 h-3 mr-1" />}
                               {getClientValue(client)}
                             </Badge>
                           )}

@@ -1382,6 +1382,7 @@ function EditClientDialog({ client }: { client: Client }) {
       billingType: client.billingType || "monthly",
       monthlyRate: client.monthlyRate || undefined,
       hourlyRate: client.hourlyRate || undefined,
+      perVisitRate: client.perVisitRate || undefined,
       paymentMethod: client.paymentMethod || undefined,
       scheduledTransferDay: client.scheduledTransferDay || undefined,
       poolLength: client.poolLength || undefined,
@@ -1894,7 +1895,7 @@ function EditClientDialog({ client }: { client: Client }) {
                       <RadioGroup
                         onValueChange={field.onChange}
                         defaultValue={field.value || "monthly"}
-                        className="grid grid-cols-2 gap-3"
+                        className="grid grid-cols-3 gap-3"
                       >
                         <div className={`flex items-center space-x-2 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'monthly' ? 'border-primary bg-primary/5' : 'bg-background/50'}`}>
                           <RadioGroupItem value="monthly" id="edit-monthly" />
@@ -1908,6 +1909,13 @@ function EditClientDialog({ client }: { client: Client }) {
                           <Label htmlFor="edit-hourly" className="flex items-center gap-2 cursor-pointer">
                             <Clock className="w-4 h-4 text-blue-600" />
                             <span className="text-sm font-medium">À Hora</span>
+                          </Label>
+                        </div>
+                        <div className={`flex items-center space-x-2 rounded-xl border p-3 shadow-sm cursor-pointer transition-colors ${field.value === 'per_visit' ? 'border-primary bg-primary/5' : 'bg-background/50'}`}>
+                          <RadioGroupItem value="per_visit" id="edit-per_visit" />
+                          <Label htmlFor="edit-per_visit" className="flex items-center gap-2 cursor-pointer">
+                            <CalendarDays className="w-4 h-4 text-amber-600" />
+                            <span className="text-sm font-medium">Por Visita</span>
                           </Label>
                         </div>
                       </RadioGroup>
@@ -1954,6 +1962,30 @@ function EditClientDialog({ client }: { client: Client }) {
                           placeholder="0.00" 
                           className="rounded-xl"
                           data-testid="input-edit-hourly-rate"
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+              
+              {billingType === "per_visit" && (
+                <FormField
+                  control={form.control}
+                  name="perVisitRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor por Visita (€)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01"
+                          placeholder="0.00" 
+                          className="rounded-xl"
+                          data-testid="input-edit-per-visit-rate"
                           {...field}
                           value={field.value ?? ""}
                           onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
