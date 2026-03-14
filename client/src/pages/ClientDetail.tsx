@@ -734,7 +734,7 @@ export default function ClientDetail() {
                       ) : (
                         <FileText className="h-3.5 w-3.5" />
                       )}
-                      Nota
+                      Gerar Nota
                     </Button>
                   </div>
                 </div>

@@ -4,6 +4,16 @@ import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import type { ServiceLogWithEntries, Client } from "@shared/schema";
 
+interface AutoTableResult {
+  finalY?: number;
+}
+
+function runAutoTable(doc: jsPDF, options: Parameters<typeof autoTable>[1]): AutoTableResult {
+  autoTable(doc, options);
+  const docRecord = doc as unknown as Record<string, AutoTableResult>;
+  return docRecord["lastAutoTable"] ?? { finalY: options.startY };
+}
+
 const SERVICE_LABELS: Record<string, string> = {
   Garden: "Jardim",
   Pool: "Piscina",
@@ -39,7 +49,7 @@ export function generateServiceNote(
   doc.text("Manutenção de Jardins, Piscinas e Jacuzzis", margin, y);
 
   y += 4;
-  doc.text("Lourinhã, Portugal", margin, y);
+  doc.text("Lourinhã, Portugal · Tel: 912 000 000 · info@peraltagardens.pt", margin, y);
 
   doc.setFontSize(14);
   doc.setTextColor(...COLORS.dark);
@@ -114,7 +124,7 @@ export function generateServiceNote(
 
   if (log.laborEntries && log.laborEntries.length > 0) {
     y += 4;
-    autoTable(doc, {
+    const laborResult = runAutoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
       head: [["Trabalhador", "Horas", "Taxa/h (€)", "Subtotal (€)"]],
@@ -140,12 +150,11 @@ export function generateServiceNote(
         fontSize: 8,
       },
     });
-
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = (laborResult.finalY ?? y) + 6;
   }
 
   if (log.materialEntries && log.materialEntries.length > 0) {
-    autoTable(doc, {
+    const materialsResult = runAutoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
       head: [["Material", "Qtd.", "Preço Unit. (€)", "Subtotal (€)"]],
@@ -171,8 +180,7 @@ export function generateServiceNote(
         fontSize: 8,
       },
     });
-
-    y = (doc as any).lastAutoTable.finalY + 6;
+    y = (materialsResult.finalY ?? y) + 6;
   }
 
   const total = log.totalAmount ?? 0;
