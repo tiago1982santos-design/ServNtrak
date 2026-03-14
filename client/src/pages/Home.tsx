@@ -1,307 +1,380 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useAppointments } from "@/hooks/use-appointments";
-import { useUnpaidExtraServices, useMarkServiceAsPaid } from "@/hooks/use-service-logs";
-import { format, isToday, startOfDay } from "date-fns";
-import { 
-  Loader2, CalendarClock, MapPin, CheckCircle2, Bell, Map, Euro, 
-  AlertCircle, Banknote, BarChart3, CreditCard, Image, Wallet, 
-  Download, ShoppingBag, Clock, ChevronRight, Sparkles, Users, ClipboardList
+import { useUnpaidExtraServices } from "@/hooks/use-service-logs";
+import { useWeather, getWeatherInfo } from "@/hooks/use-weather";
+import { format, isToday, startOfDay, differenceInMinutes } from "date-fns";
+import { useState, useEffect, useMemo } from "react";
+import { Link, useLocation } from "wouter";
+import {
+  Sun, Cloud, CloudSun, CloudRain, CloudDrizzle, Moon, CloudMoon,
+  AlertTriangle, ChevronRight, Play, MapPin, Navigation2,
+  Droplets, Leaf, CheckCircle2, Map, FileText, Camera,
+  BarChart2, Loader2, CalendarClock, ShoppingBag, Users, ClipboardList,
 } from "lucide-react";
-import { Link } from "wouter";
 import { BottomNav } from "@/components/BottomNav";
 import { CreateClientDialog } from "@/components/CreateClientDialog";
 import { QuickPhotoCaptureButton } from "@/components/QuickPhotoCaptureButton";
-import { WeatherWidget } from "@/components/WeatherWidget";
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
-import { Button } from "@/components/ui/button";
+
+const SERVICE_CONFIG = {
+  Garden:  { label: "Jardim",  Icon: Leaf,     badge: "bg-[#F0F4E8] text-[#6B7B3A]" },
+  Pool:    { label: "Piscina", Icon: Droplets,  badge: "bg-[#E8F0EF] text-[#5B8B8B]" },
+  Jacuzzi: { label: "Jacuzzi", Icon: Droplets,  badge: "bg-[#EBF1F0] text-[#6BA3A0]" },
+  General: { label: "Geral",   Icon: ChevronRight, badge: "bg-[#F5EDE0] text-[#8B6B40]" },
+};
+
+function ServiceBadge({ type }: { type: string }) {
+  const cfg = SERVICE_CONFIG[type as keyof typeof SERVICE_CONFIG] ?? SERVICE_CONFIG.General;
+  return (
+    <span className={cn("px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-fit", cfg.badge)}>
+      <cfg.Icon className="w-3.5 h-3.5" /> {cfg.label}
+    </span>
+  );
+}
+
+function WeatherPill() {
+  const { data: weather, isLoading } = useWeather();
+
+  if (isLoading || !weather) {
+    return (
+      <div className="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50">
+        <Sun className="w-5 h-5 text-amber-300" />
+        <span className="text-sm font-bold text-[#2D1B0E]/40">--°C</span>
+      </div>
+    );
+  }
+
+  const info = getWeatherInfo(weather.weatherCode);
+  const iconKey = info.icon as string;
+
+  const DayIcons: Record<string, typeof Sun> = { sun: Sun, cloud: Cloud, "cloud-sun": CloudSun, "cloud-rain": CloudRain, "cloud-drizzle": CloudDrizzle };
+  const NightIcons: Record<string, typeof Moon> = { sun: Moon, "cloud-sun": CloudMoon, cloud: Cloud, "cloud-rain": CloudRain, "cloud-drizzle": CloudDrizzle };
+  const WeatherIcon = weather.isDay ? (DayIcons[iconKey] ?? Sun) : (NightIcons[iconKey] ?? Moon);
+
+  return (
+    <div className="flex items-center gap-2 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100/50 shadow-[0_2px_10px_rgba(245,158,11,0.1)]">
+      <WeatherIcon className="w-5 h-5 text-amber-500" />
+      <span className="text-sm font-bold text-[#2D1B0E]">{Math.round(weather.temperature)}°C</span>
+    </div>
+  );
+}
+
+function CountdownBadge({ date }: { date: Date }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick(n => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const minutes = differenceInMinutes(date, new Date());
+
+  if (minutes <= 0) {
+    return <span className="bg-white text-orange-600 px-3 py-1.5 rounded-full font-bold text-sm shadow-[0_4px_12px_rgba(0,0,0,0.1)]">A decorrer</span>;
+  }
+  if (minutes < 60) {
+    return (
+      <span className="bg-white text-orange-600 px-3 py-1.5 rounded-full font-bold text-sm shadow-[0_4px_12px_rgba(0,0,0,0.1)] flex items-center gap-1.5 animate-[pulse_3s_ease-in-out_infinite]">
+        <Sun className="w-3.5 h-3.5 fill-orange-500" /> daqui a {minutes} min
+      </span>
+    );
+  }
+  return (
+    <span className="bg-white text-orange-600 px-3 py-1.5 rounded-full font-bold text-sm shadow-[0_4px_12px_rgba(0,0,0,0.1)] flex items-center gap-1.5">
+      <Sun className="w-3.5 h-3.5 fill-orange-500" /> em {Math.floor(minutes / 60)}h
+    </span>
+  );
+}
 
 export default function Home() {
   const { user } = useAuth();
-  
-  const todayStart = useMemo(() => startOfDay(new Date()).toISOString(), []);
-  
-  const { data: appointments, isLoading } = useAppointments({ 
-    from: todayStart 
-  });
-  
-  const { data: unpaidServices } = useUnpaidExtraServices();
-  const markAsPaid = useMarkServiceAsPaid();
+  const [, navigate] = useLocation();
 
-  const userName = user?.firstName || "Jardineiro";
-  
-  const todayAppointments = appointments?.filter(apt => isToday(new Date(apt.date))) || [];
-  const pendingCount = appointments?.filter(a => !a.isCompleted).length || 0;
-  
-  const unpaidTotal = unpaidServices?.reduce((sum, s) => sum + (s.totalAmount || 0), 0) || 0;
+  const todayStart = useMemo(() => startOfDay(new Date()).toISOString(), []);
+  const [currentTime, setCurrentTime] = useState(format(new Date(), "HH:mm"));
+  useEffect(() => {
+    const t = setInterval(() => setCurrentTime(format(new Date(), "HH:mm")), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const { data: appointments, isLoading } = useAppointments({ from: todayStart });
+  const { data: unpaidServices } = useUnpaidExtraServices();
+
+  const userName = user?.firstName || "Tiago";
 
   const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Bom dia";
-    if (hour < 19) return "Boa tarde";
+    const h = new Date().getHours();
+    if (h < 12) return "Bom dia";
+    if (h < 19) return "Boa tarde";
     return "Boa noite";
   };
 
+  const todayAppointments = useMemo(
+    () =>
+      (appointments?.filter(apt => isToday(new Date(apt.date))) ?? []).sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      ),
+    [appointments]
+  );
+
+  const completedToday = todayAppointments.filter(a => a.isCompleted);
+  const nextAppointment = todayAppointments.find(a => !a.isCompleted);
+  const unpaidTotal = unpaidServices?.reduce((s, x) => s + (x.totalAmount ?? 0), 0) ?? 0;
+  const unpaidCount = unpaidServices?.length ?? 0;
+  const progressFraction = todayAppointments.length > 0 ? completedToday.length / todayAppointments.length : 0;
+
+  const quickActions = [
+    { href: "/map",     Icon: Map,      label: "Mapa",      color: "bg-amber-50 text-amber-600 border-amber-200" },
+    { href: "/billing", Icon: FileText, label: "Faturas",   color: "bg-[#F0F4E8] text-[#6B7B3A] border-[#DCE4C8]" },
+    { href: "/gallery", Icon: Camera,   label: "Fotos",     color: "bg-orange-50 text-orange-500 border-orange-200" },
+    { href: "/reports", Icon: BarChart2, label: "Relatórios", color: "bg-[#F5EDE0] text-[#8B6B40] border-[#E5D5C0]" },
+  ];
+
+  const moreActions = [
+    { href: "/pending-tasks", Icon: ClipboardList, label: "Tarefas Pendentes", desc: "Ver todas as tarefas por fazer", iconBg: "bg-amber-100/70 text-amber-700" },
+    { href: "/employees",    Icon: Users,          label: "Funcionários",       desc: "Gerir equipa e salários",         iconBg: "bg-orange-100/70 text-orange-700" },
+    { href: "/purchases",    Icon: ShoppingBag,    label: "Compras e Despesas", desc: "Gerir materiais e gastos",        iconBg: "bg-[#F0F4E8] text-[#6B7B3A]" },
+  ];
+
   return (
-    <div className="min-h-screen bg-background pb-24 page-transition">
-      <div className="relative overflow-hidden gradient-primary pt-14 pb-8 px-6">
-        <div className="absolute inset-0 gradient-mesh opacity-60" />
-        <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4 blur-3xl" />
-        
-        <div className="relative z-10">
-          <div className="flex items-start justify-between gap-4">
-            <div className="slide-up">
-              <div className="flex items-center gap-2 mb-1">
-                <Sparkles className="w-4 h-4 text-white/70" />
-                <p className="text-white/80 text-sm font-medium">ServNtrak</p>
-              </div>
-              <h1 className="text-2xl font-extrabold text-white">
-                {getGreeting()}, {userName}
-              </h1>
-            </div>
+    <div className="min-h-screen bg-[#FFFCF5] pb-24 mx-auto max-w-[480px] relative">
+
+      {/* ── HEADER ─────────────────────────────── */}
+      <div className="bg-white px-5 pt-12 pb-5 rounded-b-[2rem] shadow-[0_8px_30px_rgba(200,120,50,0.06)] border-b border-orange-50/50 z-10 relative">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <p className="text-[#9B7B5E] text-sm font-medium mb-0.5">{getGreeting()}, {userName}</p>
+            <h1 className="text-3xl font-bold text-[#2D1B0E] tracking-tight" data-testid="text-current-time">{currentTime}</h1>
           </div>
-          
-          <div className="mt-5 fade-in" style={{ animationDelay: '0.1s' }}>
-            <WeatherWidget className="mt-2" showAlerts={true} />
+          <WeatherPill />
+        </div>
+
+        <div className="space-y-2.5">
+          <div className="flex justify-between items-end">
+            <span className="text-xs font-semibold text-[#9B7B5E] uppercase tracking-wider">Progresso de Hoje</span>
+            <span className="text-sm font-bold text-[#6B7B3A]" data-testid="text-progress">
+              {isLoading ? "…" : `${completedToday.length} de ${todayAppointments.length} concluído${completedToday.length !== 1 ? "s" : ""}`}
+            </span>
+          </div>
+          <div className="h-3 w-full bg-orange-50 rounded-full overflow-hidden shadow-inner relative">
+            <div
+              className="h-full bg-gradient-to-r from-[#6B7B3A] to-amber-400 rounded-full transition-all duration-700"
+              style={{ width: `${progressFraction * 100}%` }}
+            />
+            {todayAppointments.length > 1 && todayAppointments.slice(1).map((_, i) => (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0 w-[2px] bg-[#FFFCF5] pointer-events-none"
+                style={{ left: `${((i + 1) / todayAppointments.length) * 100}%` }}
+              />
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="px-5 -mt-4 relative z-20">
-        <div className="grid grid-cols-2 gap-3 slide-up" style={{ animationDelay: '0.15s' }}>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Clock className="w-4 h-4 text-primary" />
-              </div>
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Hoje</span>
-            </div>
-            <p className="text-3xl font-extrabold text-foreground">{todayAppointments.length}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Trabalhos agendados</p>
-          </div>
-          
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <CalendarClock className="w-4 h-4 text-amber-600" />
-              </div>
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Pendentes</span>
-            </div>
-            <p className="text-3xl font-extrabold text-foreground">{pendingCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Total de tarefas</p>
-          </div>
-        </div>
-      </div>
+      <div className="px-4 py-6 space-y-5">
 
-      <div className="px-5 mt-8 space-y-8">
-        <section className="slide-up" style={{ animationDelay: '0.2s' }}>
-          <div className="section-header">
-            <h2 className="section-title">Agenda de Hoje</h2>
-            <Link href="/calendar" className="section-link flex items-center gap-1" data-testid="link-view-calendar">
-              Ver tudo <ChevronRight className="w-4 h-4" />
-            </Link>
+        {/* ── NEXT ACTION HERO ───────────────────── */}
+        <section>
+          <div className="flex items-center gap-2 mb-3 px-2">
+            <Sun className="w-4 h-4 text-amber-500 fill-amber-500" />
+            <h2 className="text-sm font-bold text-[#9B7B5E] uppercase tracking-widest">A Seguir</h2>
           </div>
 
           {isLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <div className="bg-gradient-to-br from-[#F97316] to-[#EAB308] rounded-[2rem] p-5 flex items-center justify-center h-52">
+              <Loader2 className="w-8 h-8 text-white/60 animate-spin" />
             </div>
-          ) : todayAppointments.length > 0 ? (
-            <div className="space-y-3">
-              {todayAppointments.slice(0, 4).map((apt, index) => (
-                <Link key={apt.id} href={`/clients/${apt.clientId}`} className="block" data-testid={`link-appointment-${apt.id}`}>
-                  <div 
-                    className="mobile-card flex items-center gap-4"
-                    style={{ animationDelay: `${0.25 + index * 0.05}s` }}
-                  >
-                    <div className={cn(
-                      "w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0 font-bold",
-                      apt.type === "Garden" ? "bg-gradient-to-br from-green-100 to-green-50 text-green-700" :
-                      apt.type === "Pool" ? "bg-gradient-to-br from-blue-100 to-blue-50 text-blue-700" :
-                      apt.type === "Jacuzzi" ? "bg-gradient-to-br from-cyan-100 to-cyan-50 text-cyan-700" :
-                      "bg-gradient-to-br from-amber-100 to-amber-50 text-amber-700"
-                    )}>
-                      <span className="text-lg leading-none">{format(new Date(apt.date), "HH")}</span>
-                      <span className="text-[10px] leading-none mt-0.5">{format(new Date(apt.date), "mm")}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-foreground truncate">{apt.client.name}</h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                        <MapPin className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{apt.client.address || "Sem endereço"}</span>
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={cn(
-                          "badge-pill",
-                          apt.type === "Garden" ? "bg-green-100 text-green-700" :
-                          apt.type === "Pool" ? "bg-blue-100 text-blue-700" :
-                          apt.type === "Jacuzzi" ? "bg-cyan-100 text-cyan-700" :
-                          "bg-amber-100 text-amber-700"
-                        )}>
-                          {apt.type === 'Garden' ? 'Jardim' : apt.type === 'Pool' ? 'Piscina' : apt.type === 'Jacuzzi' ? 'Jacuzzi' : apt.type}
-                        </span>
-                        {apt.isCompleted && (
-                          <span className="badge-pill bg-green-100 text-green-700">
-                            <CheckCircle2 className="w-3 h-3" /> Feito
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground/50 shrink-0" />
+          ) : nextAppointment ? (
+            <div
+              className="bg-gradient-to-br from-[#F97316] to-[#EAB308] rounded-[2rem] p-5 shadow-[0_12px_35px_rgba(249,115,22,0.25)] text-white relative overflow-hidden"
+              data-testid="card-next-appointment"
+            >
+              <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/20 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-orange-900/10 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="relative z-10">
+                <div className="flex justify-between items-start mb-5">
+                  <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/30 flex items-center gap-2 shadow-sm">
+                    <span className="font-bold text-white text-sm tracking-wide">
+                      {format(new Date(nextAppointment.date), "HH:mm")}
+                    </span>
                   </div>
+                  <CountdownBadge date={new Date(nextAppointment.date)} />
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="text-3xl font-bold mb-2 tracking-tight text-white drop-shadow-sm">
+                    {nextAppointment.client.name}
+                  </h3>
+                  <span className="bg-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold border border-white/30 inline-flex items-center gap-1.5 backdrop-blur-sm shadow-sm">
+                    {nextAppointment.type === "Pool" || nextAppointment.type === "Jacuzzi"
+                      ? <Droplets className="w-3.5 h-3.5" />
+                      : <Leaf className="w-3.5 h-3.5" />}
+                    {nextAppointment.type === "Garden" ? "Jardim" : nextAppointment.type === "Pool" ? "Piscina" : nextAppointment.type === "Jacuzzi" ? "Jacuzzi" : "Geral"}
+                  </span>
+                </div>
+
+                {nextAppointment.client.address && (
+                  <div className="flex items-center gap-3 mb-4 bg-orange-900/10 p-3.5 rounded-2xl border border-white/20 backdrop-blur-sm">
+                    <div className="bg-white/20 p-2.5 rounded-full shadow-inner">
+                      <MapPin className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="flex-1 font-bold text-white leading-tight">{nextAppointment.client.address}</p>
+                    <button
+                      className="bg-white/20 p-2.5 rounded-full hover:bg-white/30 transition-colors shadow-sm active:scale-95"
+                      onClick={() => window.open(`https://maps.google.com/maps?q=${encodeURIComponent(nextAppointment.client.address!)}`, "_blank")}
+                      data-testid="button-navigate-maps"
+                    >
+                      <Navigation2 className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                )}
+
+                <Link href={`/clients/${nextAppointment.clientId}`}>
+                  <button
+                    className="w-full bg-white text-orange-600 font-bold text-lg py-4 rounded-full shadow-[0_8px_20px_rgba(200,100,0,0.2)] flex items-center justify-center gap-2 hover:bg-orange-50 active:scale-[0.98] transition-all"
+                    data-testid="button-start-service"
+                  >
+                    <Play className="w-5 h-5 fill-orange-600" />
+                    Vamos a isso!
+                  </button>
                 </Link>
-              ))}
-              {todayAppointments.length > 4 && (
-                <Link href="/calendar" className="block text-center text-sm text-primary font-medium py-2" data-testid="link-view-more-appointments">
-                  Ver mais {todayAppointments.length - 4} trabalhos
-                </Link>
-              )}
+              </div>
             </div>
           ) : (
-            <div className="empty-state bg-card rounded-2xl border border-border/30">
-              <div className="empty-state-icon bg-primary/5">
-                <CalendarClock className="w-7 h-7 text-primary/60" />
+            <div className="bg-gradient-to-br from-[#F0F4E8] to-[#E5EDD8] rounded-[2rem] p-8 flex flex-col items-center text-center shadow-[0_8px_30px_rgba(107,123,58,0.08)] border border-[#DCE4C8]" data-testid="card-no-appointments">
+              <div className="w-16 h-16 bg-[#6B7B3A]/10 rounded-full flex items-center justify-center mb-4">
+                <CalendarClock className="w-8 h-8 text-[#6B7B3A]" />
               </div>
-              <h3 className="font-semibold text-foreground">Sem trabalhos para hoje</h3>
-              <p className="text-sm text-muted-foreground mt-1">Aproveite o seu dia!</p>
+              <h3 className="font-bold text-[#2D1B0E] text-lg">Todos os trabalhos feitos!</h3>
+              <p className="text-[#9B7B5E] text-sm mt-1">Ótimo trabalho hoje 🌿</p>
+              <Link href="/calendar">
+                <button className="mt-4 text-sm font-bold text-amber-600 bg-amber-50 border border-amber-200 px-4 py-2 rounded-full" data-testid="button-schedule-appointment">
+                  Agendar trabalho
+                </button>
+              </Link>
             </div>
           )}
         </section>
 
-        {unpaidServices && unpaidServices.length > 0 && (
-          <section className="slide-up" style={{ animationDelay: '0.3s' }}>
-            <div className="relative overflow-hidden rounded-2xl p-5 gradient-warm shadow-lg">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-              
-              <div className="relative z-10">
-                <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center shrink-0 backdrop-blur-sm">
-                    <AlertCircle className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-white">Pagamentos Pendentes</h3>
-                    <p className="text-white/80 text-sm mt-0.5">
-                      {unpaidServices.length} serviço{unpaidServices.length > 1 ? 's' : ''} extra{unpaidServices.length > 1 ? 's' : ''} por cobrar
-                    </p>
-                    <p className="text-2xl font-extrabold text-white mt-2">{unpaidTotal.toFixed(2)}€</p>
-                  </div>
+        {/* ── URGENCY STRIP ──────────────────────── */}
+        {unpaidCount > 0 && (
+          <Link href="/billing" data-testid="link-unpaid-strip">
+            <button className="w-full bg-amber-100 hover:bg-amber-200 border border-amber-200 rounded-[1.5rem] p-4 flex items-center justify-between text-amber-800 transition-colors shadow-[0_4px_15px_rgba(251,191,36,0.15)]">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/60 p-2 rounded-full text-amber-700 shadow-sm">
+                  <AlertTriangle className="w-5 h-5" />
                 </div>
-                
-                <div className="mt-4 space-y-2 max-h-36 overflow-y-auto">
-                  {unpaidServices.slice(0, 3).map((service) => (
-                    <div key={service.id} className="glass-card-dark p-3 flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{service.clientName}</p>
-                        <p className="text-white/60 text-xs">{format(new Date(service.date), "d/MM/yyyy")}</p>
-                      </div>
-                      <div className="text-right mr-2">
-                        <p className="text-white font-bold">{(service.totalAmount || 0).toFixed(2)}€</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 text-xs font-semibold shadow-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          markAsPaid.mutate(service.id);
-                        }}
-                        disabled={markAsPaid.isPending}
-                        data-testid={`button-mark-paid-${service.id}`}
-                      >
-                        <Banknote className="w-3.5 h-3.5 mr-1" />
-                        Cobrado
-                      </Button>
-                    </div>
-                  ))}
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-base" data-testid="text-unpaid-total">{unpaidTotal.toFixed(2)}€ por cobrar</span>
+                  <span className="text-xs text-amber-800/80 font-medium">
+                    {unpaidCount} serviço{unpaidCount !== 1 ? "s" : ""} pendente{unpaidCount !== 1 ? "s" : ""}
+                  </span>
                 </div>
-                
-                {unpaidServices.length > 3 && (
-                  <Link href="/billing" className="block text-center text-white/90 text-sm mt-3 font-medium hover:text-white transition-colors" data-testid="link-view-all-pending">
-                    Ver todos os {unpaidServices.length} pendentes →
-                  </Link>
-                )}
               </div>
-            </div>
-          </section>
+              <ChevronRight className="w-5 h-5 text-amber-800/60" />
+            </button>
+          </Link>
         )}
 
-        <section className="slide-up" style={{ animationDelay: '0.35s' }}>
-          <h2 className="section-title mb-4">Ações Rápidas</h2>
-          <div className="grid grid-cols-4 gap-2.5">
-            {[
-              { href: "/map", icon: Map, label: "Mapa", color: "from-emerald-500 to-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-emerald-600 dark:text-emerald-400" },
-              { href: "/reminders", icon: Bell, label: "Lembretes", color: "from-amber-500 to-amber-600", bg: "bg-amber-50 dark:bg-amber-950/30", iconColor: "text-amber-600 dark:text-amber-400" },
-              { href: "/billing", icon: Euro, label: "Faturação", color: "from-blue-500 to-blue-600", bg: "bg-blue-50 dark:bg-blue-950/30", iconColor: "text-blue-600 dark:text-blue-400" },
-              { href: "/reports", icon: BarChart3, label: "Relatórios", color: "from-purple-500 to-purple-600", bg: "bg-purple-50 dark:bg-purple-950/30", iconColor: "text-purple-600 dark:text-purple-400" },
-              { href: "/payments", icon: CreditCard, label: "Pagamentos", color: "from-cyan-500 to-cyan-600", bg: "bg-cyan-50 dark:bg-cyan-950/30", iconColor: "text-cyan-600 dark:text-cyan-400" },
-              { href: "/gallery", icon: Image, label: "Galeria", color: "from-pink-500 to-pink-600", bg: "bg-pink-50 dark:bg-pink-950/30", iconColor: "text-pink-600 dark:text-pink-400" },
-              { href: "/finances", icon: Wallet, label: "Finanças", color: "from-teal-500 to-teal-600", bg: "bg-teal-50 dark:bg-teal-950/30", iconColor: "text-teal-600 dark:text-teal-400" },
-              { href: "/exports", icon: Download, label: "Exportar", color: "from-slate-500 to-slate-600", bg: "bg-slate-50 dark:bg-slate-900/30", iconColor: "text-slate-600 dark:text-slate-400" },
-            ].map((item, index) => (
-              <Link 
-                key={item.href} 
-                href={item.href} 
-                className={cn(
-                  "quick-action border-transparent shadow-sm",
-                  item.bg
-                )}
-                style={{ animationDelay: `${0.4 + index * 0.03}s` }}
-                data-testid={`link-quick-${item.label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')}`}
-              >
-                <div className={cn("icon-circle", item.bg)}>
-                  <item.icon className={cn("w-5 h-5", item.iconColor)} />
-                </div>
-                <span className="text-[11px] font-semibold text-foreground mt-2 text-center leading-tight">
-                  {item.label}
-                </span>
+        {/* ── QUICK ACTIONS ──────────────────────── */}
+        <section>
+          <div className="flex justify-between items-center px-2">
+            {quickActions.map((action, i) => (
+              <Link key={action.href} href={action.href} data-testid={`link-quick-${action.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}`}>
+                <button className="flex flex-col items-center gap-2.5 group outline-none">
+                  <div className={cn("w-16 h-16 rounded-[1.25rem] flex items-center justify-center shadow-[0_4px_12px_rgba(200,120,50,0.06)] border group-active:scale-95 transition-transform", action.color)}>
+                    <action.Icon className="w-7 h-7" strokeWidth={2} />
+                  </div>
+                  <span className="text-xs font-semibold text-[#9B7B5E]">{action.label}</span>
+                </button>
               </Link>
             ))}
           </div>
         </section>
 
-        <section className="slide-up pb-4 space-y-3" style={{ animationDelay: '0.45s' }}>
-          <Link href="/pending-tasks" className="block" data-testid="link-pending-tasks">
-            <div className="mobile-card flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-800/20 flex items-center justify-center">
-                <ClipboardList className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-foreground">Tarefas Pendentes</h3>
-                <p className="text-sm text-muted-foreground">Ver todas as tarefas por fazer</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
+        {/* ── QUEUE ──────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4 px-2">
+            <h2 className="text-sm font-bold text-[#9B7B5E] uppercase tracking-widest">Fila de Espera</h2>
+            <Link href="/calendar" className="text-xs font-bold text-amber-500 bg-amber-50 px-3 py-1 rounded-full" data-testid="link-calendar">
+              Ver Agenda
+            </Link>
+          </div>
+
+          {isLoading ? (
+            <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(200,120,50,0.06)] border border-orange-50 p-10 flex justify-center">
+              <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
             </div>
-          </Link>
-          
-          <Link href="/employees" className="block" data-testid="link-employees">
-            <div className="mobile-card flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-800/20 flex items-center justify-center">
-                <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-foreground">Funcionários</h3>
-                <p className="text-sm text-muted-foreground">Gerir equipa e salários</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
+          ) : todayAppointments.length > 0 ? (
+            <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(200,120,50,0.06)] border border-orange-50 overflow-hidden">
+              {todayAppointments.map((apt, i) => (
+                <Link key={apt.id} href={`/clients/${apt.clientId}`} data-testid={`link-appointment-${apt.id}`}>
+                  <div className={cn(
+                    "flex items-center gap-4 p-4 hover:bg-orange-50/30 active:bg-orange-50/50 transition-colors",
+                    i < todayAppointments.length - 1 && "border-b border-orange-50/50",
+                    apt.isCompleted && "opacity-70"
+                  )}>
+                    <div className="flex-shrink-0 w-12 flex justify-center">
+                      {apt.isCompleted ? (
+                        <div className="bg-[#F0F4E8] p-1.5 rounded-full">
+                          <CheckCircle2 className="w-5 h-5 text-[#6B7B3A]" />
+                        </div>
+                      ) : (
+                        <span className="text-sm font-bold text-amber-500 bg-amber-50 px-2 py-1 rounded-lg tabular-nums whitespace-nowrap">
+                          {format(new Date(apt.date), "HH:mm")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className={cn("font-bold text-[#2D1B0E] truncate", apt.isCompleted && "line-through text-[#9B7B5E]")}>
+                          {apt.client.name}
+                        </span>
+                        {apt.client.address && (
+                          <span className="text-xs font-medium text-[#9B7B5E] ml-2 shrink-0 max-w-[90px] truncate">
+                            {apt.client.address.split(",").pop()?.trim()}
+                          </span>
+                        )}
+                      </div>
+                      <ServiceBadge type={apt.type} />
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[#9B7B5E]/40 shrink-0" />
+                  </div>
+                </Link>
+              ))}
             </div>
-          </Link>
-          
-          <Link href="/purchases" className="block" data-testid="link-purchases">
-            <div className="mobile-card flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-100 to-violet-50 dark:from-violet-900/30 dark:to-violet-800/20 flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-foreground">Compras e Despesas</h3>
-                <p className="text-sm text-muted-foreground">Gerir materiais e gastos</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
+          ) : (
+            <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(200,120,50,0.06)] border border-orange-50 p-8 flex flex-col items-center text-center">
+              <CalendarClock className="w-10 h-10 text-amber-200 mb-3" />
+              <p className="font-semibold text-[#2D1B0E]">Sem trabalhos para hoje</p>
+              <p className="text-sm text-[#9B7B5E] mt-1">Aproveite o seu dia!</p>
             </div>
-          </Link>
+          )}
         </section>
+
+        {/* ── MORE ACTIONS ───────────────────────── */}
+        <section className="pb-4 space-y-3">
+          <h2 className="text-sm font-bold text-[#9B7B5E] uppercase tracking-widest px-2 mb-4">Mais</h2>
+          {moreActions.map((action) => (
+            <Link key={action.href} href={action.href} className="block" data-testid={`link-more-${action.href.slice(1)}`}>
+              <div className="bg-white rounded-[1.5rem] shadow-[0_4px_15px_rgba(200,120,50,0.05)] border border-orange-50 p-4 flex items-center gap-4 hover:bg-orange-50/20 active:scale-[0.99] transition-all">
+                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0", action.iconBg)}>
+                  <action.Icon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-[#2D1B0E]">{action.label}</h3>
+                  <p className="text-sm text-[#9B7B5E]">{action.desc}</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-[#9B7B5E]/40 shrink-0" />
+              </div>
+            </Link>
+          ))}
+        </section>
+
       </div>
 
+      {/* FABs */}
       <div className="fixed bottom-24 right-5 z-40 flex flex-col gap-3">
         <QuickPhotoCaptureButton />
         <CreateClientDialog />

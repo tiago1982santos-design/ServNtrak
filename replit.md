@@ -12,6 +12,21 @@ ServNtrak é uma aplicação mobile-first para gestão de serviços de manutenç
 - **Estilo de Comunicação**: Simples e direto.
 - **Serviços Atuais**: Jardim, Piscina, Jacuzzi e Geral.
 
+## Home Page Design — "Dia de Sol (Polido)"
+
+The Home page was redesigned from a dark-green gradient to a warm amber/orange "Sunny" aesthetic:
+- **Background**: `#FFFCF5` (warm cream)
+- **Primary accent**: Orange-to-amber gradient (`#F97316` → `#EAB308`)
+- **Text colours**: `#2D1B0E` (headings), `#9B7B5E` (secondary), `#6B7B3A` (sage/success)
+- **Layout sections**:
+  1. White header card: live clock, greeting, weather pill, segmented progress bar
+  2. Hero "A Seguir" card: next uncompleted appointment with countdown, address + maps link, CTA
+  3. Urgency strip (amber): unpaid services total → links to /billing
+  4. 4 Quick Actions: Mapa, Faturas, Fotos, Relatórios
+  5. "Fila de Espera": all today's appointments sorted by time
+  6. "Mais": Tarefas Pendentes, Funcionários, Compras e Despesas
+- **BottomNav** updated: amber active state (`bg-orange-50`, `text-amber-500`), warm `border-orange-100` top border
+
 ## Scheduling Rules
 
 ### Business Hours
