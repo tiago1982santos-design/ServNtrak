@@ -3,6 +3,7 @@ import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import type { ServiceLogWithEntries, Client } from "@shared/schema";
+import logoUrl from "@assets/logo1_1773532520882.png";
 
 interface AutoTableResult {
   finalY?: number;
@@ -12,6 +13,24 @@ function runAutoTable(doc: jsPDF, options: Parameters<typeof autoTable>[1]): Aut
   autoTable(doc, options);
   const docRecord = doc as unknown as Record<string, AutoTableResult>;
   return docRecord["lastAutoTable"] ?? { finalY: options.startY };
+}
+
+function loadImageAsDataUrl(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas 2D context unavailable"));
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("Failed to load logo image"));
+    img.src = url;
+  });
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -30,41 +49,52 @@ const COLORS = {
   tableFoot: [240, 240, 240] as [number, number, number],
 };
 
-export function generateServiceNote(
+export async function generateServiceNote(
   log: ServiceLogWithEntries,
   client: Pick<Client, "name" | "address" | "phone" | "email">
 ) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 16;
-  let y = 20;
+  const logoSize = 24;
+  const textStartX = margin + logoSize + 6;
 
-  doc.setFontSize(20);
+  try {
+    const logoData = await loadImageAsDataUrl(logoUrl);
+    doc.addImage(logoData, "PNG", margin, 10, logoSize, logoSize);
+  } catch {
+    doc.setFontSize(20);
+    doc.setTextColor(...COLORS.brand);
+    doc.text("Peralta Gardens", margin, 20);
+  }
+
+  let y = 14;
+  doc.setFontSize(14);
   doc.setTextColor(...COLORS.brand);
-  doc.text("Peralta Gardens", margin, y);
+  doc.text("Peralta Gardens", textStartX, y);
 
-  y += 6;
+  y += 5;
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.grey);
-  doc.text("Manutenção de Jardins, Piscinas e Jacuzzis", margin, y);
+  doc.text("Manutenção de Jardins, Piscinas e Jacuzzis", textStartX, y);
 
   y += 4;
-  doc.text("Lourinhã, Portugal · Tel: 912 000 000 · info@peraltagardens.pt", margin, y);
+  doc.text("Lourinhã, Portugal · Tel: 912 000 000 · info@peraltagardens.pt", textStartX, y);
 
   doc.setFontSize(14);
   doc.setTextColor(...COLORS.dark);
-  doc.text("Nota de Despesa", pageWidth - margin, 22, { align: "right" });
+  doc.text("Nota de Despesa", pageWidth - margin, 16, { align: "right" });
 
   doc.setFontSize(9);
   doc.setTextColor(...COLORS.grey);
   doc.text(
     `Data: ${format(new Date(log.date), "d 'de' MMMM 'de' yyyy", { locale: pt })}`,
     pageWidth - margin,
-    30,
+    23,
     { align: "right" }
   );
 
-  y += 6;
+  y = 10 + logoSize + 6;
   doc.setDrawColor(...COLORS.lightGrey);
   doc.setLineWidth(0.3);
   doc.line(margin, y, pageWidth - margin, y);

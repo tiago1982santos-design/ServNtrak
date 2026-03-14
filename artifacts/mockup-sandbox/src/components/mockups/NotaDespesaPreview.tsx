@@ -44,15 +44,22 @@ export default function NotaDespesaPreview() {
     >
       <div style={{ padding: "32px 40px 0 40px", flex: 1 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <div style={{ fontSize: 26, fontWeight: 700, color: brandGreen, letterSpacing: -0.5 }}>
-              Peralta Gardens
-            </div>
-            <div style={{ fontSize: 10, color: grey, marginTop: 4 }}>
-              Manutenção de Jardins, Piscinas e Jacuzzis
-            </div>
-            <div style={{ fontSize: 10, color: grey, marginTop: 2 }}>
-              Lourinhã, Portugal · Tel: 912 000 000 · info@peraltagardens.pt
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <img
+              src="/__mockup/logo.png"
+              alt="Peralta Gardens"
+              style={{ width: 72, height: 72, objectFit: "contain", flexShrink: 0 }}
+            />
+            <div style={{ paddingTop: 4 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: brandGreen, letterSpacing: -0.3 }}>
+                Peralta Gardens
+              </div>
+              <div style={{ fontSize: 10, color: grey, marginTop: 3 }}>
+                Manutenção de Jardins, Piscinas e Jacuzzis
+              </div>
+              <div style={{ fontSize: 10, color: grey, marginTop: 2 }}>
+                Lourinhã, Portugal · Tel: 912 000 000 · info@peraltagardens.pt
+              </div>
             </div>
           </div>
           <div style={{ textAlign: "right" }}>

@@ -62,7 +62,7 @@ export default function ClientDetail() {
       const res = await fetch(`/api/service-logs/${logId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Erro ao carregar dados do serviço");
       const fullLog: ServiceLogWithEntries = await res.json();
-      generateServiceNote(fullLog, client);
+      await generateServiceNote(fullLog, client);
       toast({ title: "PDF gerado", description: "A nota de despesa foi descarregada." });
     } catch {
       toast({ title: "Erro", description: "Não foi possível gerar a nota de despesa.", variant: "destructive" });
