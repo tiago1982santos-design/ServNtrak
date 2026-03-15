@@ -175,36 +175,10 @@ export default function Home() {
     }
   }, []);
 
-  const handleSaida = useCallback(async (visita: VisitaConcluida) => {
-    try {
-      const res = await fetch("/api/geofencing/visit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          clientId: visita.clienteId,
-          appointmentId: visita.agendamentoId,
-          inicio: visita.inicio.toISOString(),
-          fim: visita.fim.toISOString(),
-          duracaoMinutos: visita.duracaoMinutos,
-          fonte: "geofencing",
-        }),
-      });
-      if (!res.ok) {
-        console.error("Erro ao finalizar visita:", await res.text());
-      } else {
-        queryClient.invalidateQueries({ queryKey: [api.appointments.list.path] });
-      }
-    } catch (err) {
-      console.error("Erro ao finalizar visita:", err);
-    }
-  }, [queryClient]);
-
   const geo = useGeofencing(clientesGeofencing, {
     raioMetros: 75,
     intervaloMs: 30_000,
     onEntrada: handleEntrada,
-    onSaida: handleSaida,
   });
 
   const finalizarVisita = useCallback(async (visita: VisitaConcluida, duracaoOverride?: number) => {
