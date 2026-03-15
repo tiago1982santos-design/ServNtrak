@@ -667,8 +667,7 @@ export class DatabaseStorage implements IStorage {
       insertedServices.push(s);
     }
 
-    // If there's an appointment linked, mark it as completed
-    if (visit.appointmentId) {
+    if (visit.appointmentId && visit.status !== "em_curso") {
       await db
         .update(appointments)
         .set({ isCompleted: true })
@@ -691,7 +690,7 @@ export class DatabaseStorage implements IStorage {
     const serviceBreakdown: Record<string, number> = {};
 
     for (const visit of visits) {
-      totalDuration += visit.actualDurationMinutes;
+      totalDuration += visit.actualDurationMinutes ?? 0;
       totalWorkers += visit.workerCount;
 
       for (const service of visit.services) {
@@ -700,7 +699,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     const totalWorkerHours = visits.reduce(
-      (sum, v) => sum + (v.actualDurationMinutes * v.workerCount) / 60,
+      (sum, v) => sum + ((v.actualDurationMinutes ?? 0) * v.workerCount) / 60,
       0
     );
 

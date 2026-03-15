@@ -976,6 +976,7 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
         {
           userId,
           clientId: parsed.clientId,
+          appointmentId: parsed.appointmentId,
           visitDate: new Date(parsed.timestamp),
           actualDurationMinutes: 0,
           workerCount: 1,
@@ -1023,12 +1024,16 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
         const { db } = await import("./db");
         const { eq } = await import("drizzle-orm");
         const { serviceVisits } = await import("@shared/schema");
-        const [updated] = await db.update(serviceVisits)
-          .set({
+        const updateData: Record<string, any> = {
             endTime: new Date(parsed.fim),
             actualDurationMinutes: parsed.duracaoMinutos,
             status: "concluida",
-          })
+          };
+        if (parsed.appointmentId) {
+          updateData.appointmentId = parsed.appointmentId;
+        }
+        const [updated] = await db.update(serviceVisits)
+          .set(updateData)
           .where(eq(serviceVisits.id, emCurso.id))
           .returning();
 
