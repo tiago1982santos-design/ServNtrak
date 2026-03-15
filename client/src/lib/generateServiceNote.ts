@@ -3,7 +3,7 @@ import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import type { ServiceLogWithEntries, Client } from "@shared/schema";
-import logoUrl from "@assets/logo1_1773532520882.png";
+import logoUrl from "@assets/logo.png";
 
 interface AutoTableResult {
   finalY?: number;
@@ -63,9 +63,7 @@ export async function generateServiceNote(
     const logoData = await loadImageAsDataUrl(logoUrl);
     doc.addImage(logoData, "PNG", margin, 12, logoSize, logoSize);
   } catch {
-    doc.setFontSize(20);
-    doc.setTextColor(...COLORS.brand);
-    doc.text("Peralta Gardens", margin, 24);
+    // logo failed to load silently — subtitle/contact lines remain
   }
 
   let y = 18;

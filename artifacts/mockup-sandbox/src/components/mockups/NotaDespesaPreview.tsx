@@ -1,3 +1,5 @@
+import logoSrc from "@/assets/logo.png";
+
 const brandGreen = "rgb(45, 90, 39)";
 const dark = "rgb(30, 30, 30)";
 const grey = "rgb(120, 120, 120)";
@@ -46,7 +48,7 @@ export default function NotaDespesaPreview() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
             <img
-              src="/__mockup/logo.png"
+              src={logoSrc}
               alt="Peralta Gardens"
               style={{ width: 80, height: 80, objectFit: "contain", flexShrink: 0 }}
             />
