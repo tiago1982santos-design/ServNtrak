@@ -155,9 +155,30 @@ export default function Home() {
     [todayAppointments]
   );
 
+  const handleEntrada = useCallback(async (evento: { agendamentoId?: number; clienteId: number; timestamp: Date }) => {
+    try {
+      const res = await fetch("/api/geofencing/arrival", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          clientId: evento.clienteId,
+          appointmentId: evento.agendamentoId,
+          timestamp: evento.timestamp.toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        console.error("Erro ao registar chegada:", await res.text());
+      }
+    } catch (err) {
+      console.error("Erro ao registar chegada:", err);
+    }
+  }, []);
+
   const geo = useGeofencing(clientesGeofencing, {
     raioMetros: 75,
     intervaloMs: 30_000,
+    onEntrada: handleEntrada,
   });
 
   const guardarVisita = useCallback(async (visita: VisitaConcluida, duracaoAjustada?: number) => {
@@ -167,8 +188,8 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          agendamentoId: visita.agendamentoId,
-          clienteId: visita.clienteId,
+          clientId: visita.clienteId,
+          appointmentId: visita.agendamentoId,
           inicio: visita.inicio.toISOString(),
           fim: visita.fim.toISOString(),
           duracaoMinutos: duracaoAjustada ?? visita.duracaoMinutos,

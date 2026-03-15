@@ -951,10 +951,53 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
     res.status(204).end();
   });
 
-  // ── GEOFENCING ENDPOINT ──────────────────────────────────────────
+  // ── GEOFENCING ENDPOINTS ─────────────────────────────────────────
+  const verifyClientOwnership = async (clientId: number, userId: string) => {
+    const userClients = await storage.getClients(userId);
+    return userClients.some(c => c.id === clientId);
+  };
+
+  const geofencingArrivalSchema = z.object({
+    clientId: z.number().int().positive(),
+    appointmentId: z.number().int().positive().optional(),
+    timestamp: z.string().datetime(),
+  });
+
+  app.post("/api/geofencing/arrival", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const parsed = geofencingArrivalSchema.parse(req.body);
+
+      if (!(await verifyClientOwnership(parsed.clientId, userId))) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+
+      const visit = await storage.createServiceVisit(
+        {
+          userId,
+          clientId: parsed.clientId,
+          visitDate: new Date(parsed.timestamp),
+          actualDurationMinutes: 0,
+          workerCount: 1,
+          source: "geofencing",
+          status: "em_curso",
+        },
+        []
+      );
+
+      res.status(201).json(visit);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors.map(e => e.message).join(', ') });
+      }
+      console.error("Geofencing arrival error:", err);
+      res.status(500).json({ message: "Erro ao registar chegada" });
+    }
+  });
+
   const geofencingVisitSchema = z.object({
-    clienteId: z.number().int().positive(),
-    agendamentoId: z.number().int().positive().optional(),
+    clientId: z.number().int().positive(),
+    appointmentId: z.number().int().positive().optional(),
     inicio: z.string().datetime(),
     fim: z.string().datetime(),
     duracaoMinutos: z.number().int().min(1).max(720),
@@ -965,16 +1008,15 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
       const userId = (req.user as any).id;
       const parsed = geofencingVisitSchema.parse(req.body);
 
-      const client = await storage.getClient(parsed.clienteId, userId);
-      if (!client) {
+      if (!(await verifyClientOwnership(parsed.clientId, userId))) {
         return res.status(404).json({ message: "Cliente não encontrado" });
       }
 
       const visit = await storage.createServiceVisit(
         {
           userId,
-          clientId: parsed.clienteId,
-          appointmentId: parsed.agendamentoId,
+          clientId: parsed.clientId,
+          appointmentId: parsed.appointmentId,
           visitDate: new Date(parsed.inicio),
           endTime: new Date(parsed.fim),
           actualDurationMinutes: parsed.duracaoMinutos,
