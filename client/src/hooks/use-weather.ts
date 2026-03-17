@@ -212,12 +212,53 @@ interface IPMAHourlyEntry {
   classWindSpeed: number;
 }
 
+const LOURINHA_LAT = 39.25;
+const LOURINHA_LON = -9.33;
+
+const WMO_TO_IPMA_CODE: Record<number, number> = {
+  0: 1,    // Clear sky → Céu limpo
+  1: 2,    // Mainly clear → Céu pouco nublado
+  2: 3,    // Partly cloudy → Céu parcialmente nublado
+  3: 4,    // Overcast → Céu muito nublado
+  45: 17,  // Fog → Nevoeiro
+  48: 17,  // Depositing rime fog → Nevoeiro
+  51: 15,  // Light drizzle → Chuvisco
+  53: 15,  // Moderate drizzle → Chuvisco
+  55: 15,  // Dense drizzle → Chuvisco
+  61: 10,  // Slight rain → Chuva fraca
+  63: 9,   // Moderate rain → Chuva
+  65: 11,  // Heavy rain → Chuva forte
+  71: 18,  // Slight snow → Neve
+  73: 18,  // Moderate snow → Neve
+  75: 18,  // Heavy snow → Neve
+  77: 18,  // Snow grains → Neve
+  80: 7,   // Slight rain showers → Aguaceiros fracos
+  81: 6,   // Moderate rain showers → Aguaceiros
+  82: 8,   // Violent rain showers → Aguaceiros fortes
+  85: 28,  // Slight snow showers → Aguaceiros de neve
+  86: 28,  // Heavy snow showers → Aguaceiros de neve
+  95: 19,  // Thunderstorm → Trovoada
+  96: 20,  // Thunderstorm with slight hail → Aguaceiros com trovoada
+  99: 20,  // Thunderstorm with heavy hail → Aguaceiros com trovoada
+};
+
+function wmoToIpmaCode(wmoCode: number): number {
+  return WMO_TO_IPMA_CODE[wmoCode] ?? 0;
+}
+
+function wmoToWindClass(windSpeed: number): number {
+  if (windSpeed < 20) return 1;
+  if (windSpeed < 40) return 2;
+  if (windSpeed < 60) return 3;
+  return 4;
+}
+
 async function fetchIPMAHourly(): Promise<HourlyForecast[]> {
   try {
     const response = await fetch(
       `https://api.ipma.pt/open-data/forecast/meteorology/cities/hourly/${IPMA_CITY_ID}.json`
     );
-    if (!response.ok) return [];
+    if (!response.ok) throw new Error("IPMA hourly unavailable");
     const data = await response.json();
     const entries: IPMAHourlyEntry[] = data.data || [];
     const now = new Date();
@@ -233,6 +274,40 @@ async function fetchIPMAHourly(): Promise<HourlyForecast[]> {
         precipitationProbability: Math.round(parseFloat(e.precipitaProb) || 0),
         windClass: e.classWindSpeed,
       }));
+  } catch {
+    return fetchOpenMeteoHourly();
+  }
+}
+
+async function fetchOpenMeteoHourly(): Promise<HourlyForecast[]> {
+  try {
+    const response = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${LOURINHA_LAT}&longitude=${LOURINHA_LON}&hourly=temperature_2m,precipitation_probability,weathercode,windspeed_10m&timezone=Europe/Lisbon&forecast_days=1`
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+
+    const times: string[] = data.hourly?.time || [];
+    const temps: number[] = data.hourly?.temperature_2m || [];
+    const precip: number[] = data.hourly?.precipitation_probability || [];
+    const codes: number[] = data.hourly?.weathercode || [];
+    const winds: number[] = data.hourly?.windspeed_10m || [];
+
+    const now = new Date();
+
+    return times
+      .map((t, i) => ({
+        datetime: t,
+        date: new Date(t),
+        hour: new Date(t).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
+        temperature: Math.round(temps[i]),
+        weatherCode: wmoToIpmaCode(codes[i]),
+        precipitationProbability: Math.round(precip[i] || 0),
+        windClass: wmoToWindClass(winds[i] || 0),
+      }))
+      .filter((e) => e.date > now)
+      .slice(0, 12)
+      .map(({ date: _, ...rest }) => rest);
   } catch {
     return [];
   }
