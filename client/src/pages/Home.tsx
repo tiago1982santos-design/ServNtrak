@@ -368,10 +368,10 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24 overflow-x-hidden w-full max-w-2xl mx-auto relative">
+    <div className="min-h-screen bg-background pb-24 page-transition">
 
       {/* ── HEADER ─────────────────────────────── */}
-      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
+      <header className="sticky top-0 z-30 bg-background/90 backdrop-blur-xl border-b border-border/30 px-5 py-3 flex justify-between items-center shadow-sm">
         <span className="text-[15px] font-bold text-slate-900 tracking-tight" data-testid="text-greeting">
           {getGreeting()}, {userName}
         </span>

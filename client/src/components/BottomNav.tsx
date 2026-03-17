@@ -23,7 +23,7 @@ export function BottomNav() {
       className="fixed bottom-0 left-0 right-0 bg-white border-t border-orange-100/60 z-50 rounded-t-3xl shadow-[0_-10px_40px_rgba(200,120,50,0.08)]"
       data-testid="bottom-navigation"
     >
-      <div className="flex justify-around items-center max-w-2xl mx-auto h-16 px-2">
+      <div className="flex justify-around items-center mx-auto h-16 px-2">
         {navItems.map((item) => {
           const isActive =
             location === item.href ||
