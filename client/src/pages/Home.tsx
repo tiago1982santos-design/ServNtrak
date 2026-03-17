@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Sun, Cloud, CloudSun, CloudRain, CloudDrizzle, Moon, CloudMoon,
+  CloudLightning, CloudFog, Snowflake, Wind,
   AlertTriangle, MapPin, Navigation2,
   Droplets, Leaf, CheckCircle2, Camera,
   FileText, BarChart2, Loader2, CalendarClock, ShoppingBag, Users, ClipboardList,
@@ -43,6 +44,17 @@ function getServiceLabel(type: string) {
   return SERVICE_LABELS[type] ?? type;
 }
 
+const DAY_ICONS: Record<string, typeof Sun> = {
+  sun: Sun, cloud: Cloud, "cloud-sun": CloudSun, "cloud-rain": CloudRain,
+  "cloud-drizzle": CloudDrizzle, "cloud-lightning": CloudLightning,
+  "cloud-fog": CloudFog, snowflake: Snowflake,
+};
+const NIGHT_ICONS: Record<string, typeof Moon> = {
+  sun: Moon, "cloud-sun": CloudMoon, cloud: Cloud, "cloud-rain": CloudRain,
+  "cloud-drizzle": CloudDrizzle, "cloud-lightning": CloudLightning,
+  "cloud-fog": CloudFog, snowflake: Snowflake,
+};
+
 function WeatherStrip() {
   const { data: weather, isLoading } = useWeather();
 
@@ -56,15 +68,104 @@ function WeatherStrip() {
   }
 
   const info = getWeatherInfo(weather.weatherCode);
-  const iconKey = info.icon as string;
-  const DayIcons: Record<string, typeof Sun> = { sun: Sun, cloud: Cloud, "cloud-sun": CloudSun, "cloud-rain": CloudRain, "cloud-drizzle": CloudDrizzle };
-  const NightIcons: Record<string, typeof Moon> = { sun: Moon, "cloud-sun": CloudMoon, cloud: Cloud, "cloud-rain": CloudRain, "cloud-drizzle": CloudDrizzle };
-  const WeatherIcon = weather.isDay ? (DayIcons[iconKey] ?? Sun) : (NightIcons[iconKey] ?? Moon);
+  const WeatherIcon = weather.isDay
+    ? (DAY_ICONS[info.icon] ?? Sun)
+    : (NIGHT_ICONS[info.icon] ?? Moon);
 
   return (
     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
       <WeatherIcon className="w-4 h-4 text-amber-500" strokeWidth={2.5} />
-      <span>{Math.round(weather.temperature)}°C {info.label}</span>
+      <span>{Math.round(weather.temperature)}°C</span>
+    </div>
+  );
+}
+
+function WeatherCard() {
+  const { data: weather, isLoading } = useWeather();
+  const [, navigate] = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4 shadow-sm animate-pulse mb-6">
+        <div className="w-14 h-14 rounded-xl bg-slate-100" />
+        <div className="flex-1 space-y-2">
+          <div className="w-20 h-6 bg-slate-100 rounded" />
+          <div className="w-32 h-4 bg-slate-100 rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!weather) return null;
+
+  const info = getWeatherInfo(weather.weatherCode);
+  const WeatherIcon = weather.isDay
+    ? (DAY_ICONS[info.icon] ?? Sun)
+    : (NIGHT_ICONS[info.icon] ?? Moon);
+
+  const isRainy = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 21].includes(weather.weatherCode);
+  const isClear = weather.weatherCode === 1;
+  const isStormy = [19, 20, 23].includes(weather.weatherCode);
+
+  const iconBg = weather.isDay
+    ? isClear ? "bg-amber-50" : isRainy ? "bg-blue-50" : isStormy ? "bg-purple-50" : "bg-slate-100"
+    : "bg-indigo-50";
+  const iconColor = weather.isDay
+    ? isClear ? "text-amber-500" : isRainy ? "text-blue-500" : isStormy ? "text-purple-500" : "text-slate-500"
+    : "text-indigo-400";
+
+  return (
+    <div
+      className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm mb-6 cursor-pointer active:scale-[0.99] transition-transform"
+      onClick={() => navigate("/weather")}
+      data-testid="weather-card"
+    >
+      <div className="flex items-center gap-4">
+        <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
+          <WeatherIcon className={cn("w-8 h-8", iconColor)} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-3xl font-bold text-slate-900">{Math.round(weather.temperature)}°</span>
+            <span className="text-sm text-slate-400 font-medium">C</span>
+          </div>
+          <p className="text-sm text-slate-500 mt-0.5 capitalize">{info.description}</p>
+        </div>
+        <div className="flex flex-col gap-1.5 items-end shrink-0">
+          {weather.windSpeed >= 10 && (
+            <div className="flex items-center gap-1 text-slate-400 text-xs font-medium">
+              <Wind className="w-3.5 h-3.5" />
+              <span>{Math.round(weather.windSpeed)} km/h</span>
+            </div>
+          )}
+          {weather.precipitation > 0 && (
+            <div className="flex items-center gap-1 text-blue-400 text-xs font-medium">
+              <Droplets className="w-3.5 h-3.5" />
+              <span>{weather.precipitation} mm</span>
+            </div>
+          )}
+          <span className="text-[10px] text-slate-300 font-medium">IPMA</span>
+        </div>
+      </div>
+
+      {weather.alerts.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          {weather.alerts.map((alert, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl",
+                alert.severity === "danger"
+                  ? "bg-red-50 text-red-700 border border-red-200"
+                  : "bg-amber-50 text-amber-700 border border-amber-200"
+              )}
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{alert.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -348,6 +449,9 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* ── WEATHER CARD ──────────────────────── */}
+        <WeatherCard />
 
         {/* ── STATS STRIP ───────────────────────── */}
         <div className="bg-[#206F4C] text-white rounded-xl p-3 mb-6 flex items-center justify-between shadow-md">
