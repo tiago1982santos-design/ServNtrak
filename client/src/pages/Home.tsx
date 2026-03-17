@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useAppointments } from "@/hooks/use-appointments";
 import { useUnpaidExtraServices } from "@/hooks/use-service-logs";
-import { useDetailedWeather, getWeatherInfo, getWindClassLabel } from "@/hooks/use-weather";
+import { useDetailedWeather, getWeatherInfo } from "@/hooks/use-weather";
 import { useGeofencing, type VisitaConcluida, type ClienteComLocalizacao } from "@/hooks/useGeofencing";
 import { format, isToday, startOfDay, differenceInMinutes } from "date-fns";
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -80,14 +80,6 @@ function WeatherStrip() {
   );
 }
 
-function getDayLabel(dateStr: string) {
-  const date = new Date(dateStr);
-  const today = new Date();
-  const diff = Math.round((date.getTime() - today.getTime()) / 86_400_000);
-  if (diff === 0) return "Hoje";
-  if (diff === 1) return "Amanhã";
-  return date.toLocaleDateString("pt-PT", { weekday: "short" });
-}
 
 function WeatherCard() {
   const { data: weather, isLoading } = useDetailedWeather();
@@ -128,7 +120,7 @@ function WeatherCard() {
     ? isClear ? "text-amber-500" : isRainy ? "text-blue-500" : isStormy ? "text-purple-500" : "text-slate-500"
     : "text-indigo-400";
 
-  const upcomingDays = weather.daily.slice(0, 5);
+  const upcomingHours = weather.hourly.slice(0, 8);
 
   return (
     <div
@@ -191,41 +183,45 @@ function WeatherCard() {
         )}
       </div>
 
-      {/* Daily forecast strip */}
-      {upcomingDays.length > 0 && (
-        <div className="border-t border-slate-100 flex divide-x divide-slate-100">
-          {upcomingDays.map((day, i) => {
-            const dayInfo = getWeatherInfo(day.weatherCode);
-            const DayIcon = DAY_ICONS[dayInfo.icon] ?? Cloud;
-            const rainProb = day.precipitationProbability;
-            return (
-              <div
-                key={day.date}
-                className={cn(
-                  "flex-1 flex flex-col items-center py-3 px-1 gap-1",
-                  i === 0 && "bg-[#206F4C]/5"
-                )}
-              >
-                <span className={cn(
-                  "text-[10px] font-bold uppercase tracking-wide",
-                  i === 0 ? "text-[#206F4C]" : "text-slate-400"
-                )}>
-                  {getDayLabel(day.date)}
-                </span>
-                <DayIcon className={cn("w-5 h-5", i === 0 ? "text-[#206F4C]" : "text-slate-400")} strokeWidth={1.5} />
-                {rainProb > 20 && (
-                  <div className="flex items-center gap-0.5 text-blue-400">
-                    <Droplets className="w-2.5 h-2.5" />
-                    <span className="text-[9px] font-bold">{rainProb}%</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1 text-[10px]">
-                  <span className="text-slate-400">{day.temperatureMin}°</span>
-                  <span className="font-bold text-slate-700">{day.temperatureMax}°</span>
+      {/* Hourly forecast strip */}
+      {upcomingHours.length > 0 && (
+        <div className="border-t border-slate-100 px-2 py-2">
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar">
+            {upcomingHours.map((h, i) => {
+              const hInfo = getWeatherInfo(h.weatherCode);
+              const HIcon = DAY_ICONS[hInfo.icon] ?? Cloud;
+              const isFirst = i === 0;
+              return (
+                <div
+                  key={h.datetime}
+                  className={cn(
+                    "shrink-0 flex flex-col items-center gap-1 px-3 py-2 rounded-xl min-w-[56px]",
+                    isFirst ? "bg-[#206F4C]/8 border border-[#206F4C]/15" : ""
+                  )}
+                >
+                  <span className={cn(
+                    "text-[10px] font-bold",
+                    isFirst ? "text-[#206F4C]" : "text-slate-400"
+                  )}>
+                    {h.hour}
+                  </span>
+                  <HIcon className={cn("w-5 h-5", isFirst ? "text-[#206F4C]" : "text-slate-400")} strokeWidth={1.5} />
+                  {h.precipitationProbability > 20 && (
+                    <div className="flex items-center gap-0.5 text-blue-400">
+                      <Droplets className="w-2.5 h-2.5" />
+                      <span className="text-[9px] font-semibold">{h.precipitationProbability}%</span>
+                    </div>
+                  )}
+                  <span className={cn(
+                    "text-[11px] font-bold",
+                    isFirst ? "text-slate-700" : "text-slate-600"
+                  )}>
+                    {h.temperature}°
+                  </span>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

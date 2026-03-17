@@ -27,8 +27,18 @@ export interface DailyForecast {
   windDirection: string;
 }
 
+export interface HourlyForecast {
+  datetime: string;
+  hour: string;
+  temperature: number;
+  weatherCode: number;
+  precipitationProbability: number;
+  windClass: number;
+}
+
 export interface DetailedWeatherData extends WeatherData {
   daily: DailyForecast[];
+  hourly: HourlyForecast[];
   todayForecast: {
     temperatureMin: number;
     temperatureMax: number;
@@ -194,6 +204,40 @@ async function fetchIPMAWarnings(): Promise<IPMAWarning[]> {
   }
 }
 
+interface IPMAHourlyEntry {
+  dataPrev: string;
+  idWeatherType: number;
+  tMed: number;
+  precipitaProb: string;
+  classWindSpeed: number;
+}
+
+async function fetchIPMAHourly(): Promise<HourlyForecast[]> {
+  try {
+    const response = await fetch(
+      `https://api.ipma.pt/open-data/forecast/meteorology/cities/hourly/${IPMA_CITY_ID}.json`
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    const entries: IPMAHourlyEntry[] = data.data || [];
+    const now = new Date();
+
+    return entries
+      .filter((e) => new Date(e.dataPrev) > now)
+      .slice(0, 12)
+      .map((e) => ({
+        datetime: e.dataPrev,
+        hour: new Date(e.dataPrev).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }),
+        temperature: Math.round(e.tMed),
+        weatherCode: e.idWeatherType,
+        precipitationProbability: Math.round(parseFloat(e.precipitaProb) || 0),
+        windClass: e.classWindSpeed,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 function buildAlerts(warnings: IPMAWarning[]): WeatherAlert[] {
   return warnings.map((w) => ({
     type: mapWarningType(w.awarenessTypeName),
@@ -237,10 +281,11 @@ async function fetchWeather(): Promise<WeatherData> {
 }
 
 async function fetchDetailedWeather(): Promise<DetailedWeatherData> {
-  const [observation, forecast, warnings] = await Promise.all([
+  const [observation, forecast, warnings, hourly] = await Promise.all([
     fetchIPMAObservation(),
     fetchIPMAForecast(),
     fetchIPMAWarnings(),
+    fetchIPMAHourly(),
   ]);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -287,6 +332,7 @@ async function fetchDetailedWeather(): Promise<DetailedWeatherData> {
     alerts: buildAlerts(warnings),
     source: "ipma",
     daily,
+    hourly,
     todayForecast,
   };
 }
