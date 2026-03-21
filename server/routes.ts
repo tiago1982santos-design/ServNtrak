@@ -1100,5 +1100,51 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
     }
   });
 
+  // --- Assistente Claude ---
+  app.post("/api/assistant", requireAuth, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const { message, history = [] } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ message: "Mensagem em falta" });
+      }
+
+      // Buscar contexto do utilizador (clientes e agendamentos)
+      const clients = await storage.getClients(userId);
+      const appointments = await storage.getAppointments(userId);
+
+      const systemPrompt = `És um assistente de gestão de negócio para a Peralta Gardens, uma empresa de jardinagem e manutenção de piscinas e jacuzzis em Lourinhã, Portugal. O proprietário chama-se Tiago Santos.
+
+  Tens acesso aos seguintes dados em tempo real:
+  - Clientes: ${JSON.stringify(clients.map(c => ({ id: c.id, nome: c.name, morada: c.address })))}
+  - Agendamentos: ${JSON.stringify(appointments.map(a => ({ id: a.id, cliente: a.clientId, data: a.scheduledDate, servico: a.serviceType })))}
+
+  Responde sempre em português, de forma direta e prática. Ajuda o Tiago a gerir melhor o negócio.`;
+
+      const Anthropic = (await import("@anthropic-ai/sdk")).default;
+      const anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      });
+
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
+          ...history,
+          { role: "user", content: message }
+        ],
+      });
+
+      const reply = response.content[0].type === "text" ? response.content[0].text : "";
+      res.json({ reply });
+
+    } catch (err: any) {
+      console.error("Assistente Claude error:", err);
+      res.status(500).json({ message: "Erro no assistente" });
+    }
+  });
+
   return httpServer;
 }
