@@ -460,7 +460,7 @@ export default function Login() {
                     <Input
                       id="register-firstName"
                       type="text"
-                      placeholder="Tiago"
+                      placeholder="Nome"
                       value={registerForm.firstName}
                       onChange={(e) => setRegisterForm({ ...registerForm, firstName: e.target.value })}
                       autoComplete="given-name"
@@ -472,7 +472,7 @@ export default function Login() {
                     <Input
                       id="register-lastName"
                       type="text"
-                      placeholder="Santos"
+                      placeholder="Apelido"
                       value={registerForm.lastName}
                       onChange={(e) => setRegisterForm({ ...registerForm, lastName: e.target.value })}
                       autoComplete="family-name"
@@ -488,7 +488,7 @@ export default function Login() {
                     <Input
                       id="register-username"
                       type="text"
-                      placeholder="tiagosantos"
+                      placeholder="utilizador"
                       value={registerForm.username}
                       onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
                       className="pl-10"
