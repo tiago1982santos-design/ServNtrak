@@ -112,6 +112,13 @@ The Home page was redesigned from a dark-green gradient to a warm amber/orange "
 - Login page supports: social login buttons, email/password login, account registration, password reset
 - **Password Reset**: `POST /api/auth/forgot-password` sends hashed-token email via Resend; `POST /api/auth/reset-password` validates SHA-256 hashed token and updates password. Uses `passwordResetTokens` table. Tokens expire after 1 hour. Requires `RESEND_API_KEY` env var (optional `APP_BASE_URL` for custom domain).
 
+### Client Profitability
+- **Page**: `client/src/pages/ClientProfitability.tsx` at route `/profitability`
+- **Endpoint**: `GET /api/clients/profitability` — calculates revenue vs labor cost per client
+- **Data**: Aggregates paid `clientPayments` (revenue), completed `serviceVisits` (hours), and `serviceLogLaborEntries` (labor cost) per client
+- **Features**: Global totals (4 summary cards), top-10 bar chart (recharts), sortable client list (by margin €, revenue, margin %, hours), color-coded margin badges
+- **Access**: "Rentabilidade por Cliente" button on Reports page
+
 ### Shared Code Pattern
 - `shared/schema.ts` - Drizzle table definitions and Zod insert schemas
 - `shared/routes.ts` - API route definitions with path, method, input/output schemas

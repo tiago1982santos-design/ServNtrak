@@ -21,6 +21,7 @@ import Billing from "@/pages/Billing";
 import Profile from "@/pages/Profile";
 import Purchases from "@/pages/Purchases";
 import Reports from "@/pages/Reports";
+import ClientProfitability from "@/pages/ClientProfitability";
 import Payments from "@/pages/Payments";
 import Logos from "@/pages/Logos";
 import Gallery from "@/pages/Gallery";
@@ -63,6 +64,7 @@ function Router() {
         <Route path="/billing" component={Billing} />
         <Route path="/purchases" component={Purchases} />
         <Route path="/reports" component={Reports} />
+        <Route path="/profitability" component={ClientProfitability} />
         <Route path="/payments" component={Payments} />
         <Route path="/profile" component={Profile} />
         <Route path="/logos" component={Logos} />

@@ -24,7 +24,8 @@ import {
   type InsertMonthlyDistribution, type MonthlyDistribution,
   type InsertEmployee, type Employee,
   type InsertPendingTask, type PendingTask, type PendingTaskWithClient,
-  type InsertSuggestedWork, type SuggestedWork, type SuggestedWorkWithClient
+  type InsertSuggestedWork, type SuggestedWork, type SuggestedWorkWithClient,
+  type ClientProfitabilityData
 } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
@@ -35,6 +36,7 @@ export interface IStorage {
   createClient(client: InsertClient & { userId: string }): Promise<Client>;
   updateClient(id: number, userId: string, updates: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: number, userId: string): Promise<void>;
+  getClientsProfitability(userId: string): Promise<ClientProfitabilityData[]>;
 
   // Appointments
   getAppointments(userId: string, clientId?: number): Promise<Appointment[]>;
@@ -165,6 +167,77 @@ export class DatabaseStorage implements IStorage {
 
   async deleteClient(id: number, userId: string): Promise<void> {
     await db.delete(clients).where(and(eq(clients.id, id), eq(clients.userId, userId)));
+  }
+
+  async getClientsProfitability(userId: string): Promise<ClientProfitabilityData[]> {
+    const userClients = await this.getClients(userId);
+    const results: ClientProfitabilityData[] = [];
+
+    for (const client of userClients) {
+      const payments = await db
+        .select()
+        .from(clientPayments)
+        .where(and(
+          eq(clientPayments.clientId, client.id),
+          eq(clientPayments.userId, userId),
+          eq(clientPayments.isPaid, true)
+        ));
+      const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
+
+      const visits = await db
+        .select()
+        .from(serviceVisits)
+        .where(and(
+          eq(serviceVisits.clientId, client.id),
+          eq(serviceVisits.userId, userId),
+          eq(serviceVisits.status, "concluida")
+        ));
+      const totalVisits = visits.length;
+      const totalWorkerHours = visits.reduce(
+        (sum, v) => sum + ((v.actualDurationMinutes ?? 0) * v.workerCount) / 60,
+        0
+      );
+
+      const logs = await db
+        .select()
+        .from(serviceLogs)
+        .where(and(
+          eq(serviceLogs.clientId, client.id),
+          eq(serviceLogs.userId, userId)
+        ));
+
+      let totalLaborCost = 0;
+      for (const log of logs) {
+        const laborEntries = await db
+          .select()
+          .from(serviceLogLaborEntries)
+          .where(eq(serviceLogLaborEntries.serviceLogId, log.id));
+        totalLaborCost += laborEntries.reduce((sum, e) => {
+          const payRate = e.hourlyPayRate ?? e.hourlyRate;
+          return sum + (e.hours * payRate);
+        }, 0);
+      }
+
+      const grossMargin = totalReceived - totalLaborCost;
+      const grossMarginPercent = totalReceived > 0
+        ? Math.round((grossMargin / totalReceived) * 1000) / 10
+        : null;
+
+      results.push({
+        clientId: client.id,
+        clientName: client.name,
+        billingType: client.billingType ?? "monthly",
+        monthlyRate: client.monthlyRate ?? null,
+        totalReceived: Math.round(totalReceived * 100) / 100,
+        totalVisits,
+        totalWorkerHours: Math.round(totalWorkerHours * 10) / 10,
+        totalLaborCost: Math.round(totalLaborCost * 100) / 100,
+        grossMargin: Math.round(grossMargin * 100) / 100,
+        grossMarginPercent,
+      });
+    }
+
+    return results.sort((a, b) => b.grossMargin - a.grossMargin);
   }
 
   // Appointments

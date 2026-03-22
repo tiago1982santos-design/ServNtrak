@@ -580,3 +580,16 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
 }));
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+export type ClientProfitabilityData = {
+  clientId: number;
+  clientName: string;
+  billingType: string;
+  monthlyRate: number | null;
+  totalReceived: number;
+  totalVisits: number;
+  totalWorkerHours: number;
+  totalLaborCost: number;
+  grossMargin: number;
+  grossMarginPercent: number | null;
+};

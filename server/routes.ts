@@ -95,6 +95,12 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  app.get("/api/clients/profitability", requireAuth, async (req, res) => {
+    const userId = req.user!.id;
+    const data = await storage.getClientsProfitability(userId);
+    res.json(data);
+  });
+
   // --- Appointments ---
 
   app.get(api.appointments.list.path, requireAuth, async (req, res) => {

@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, TrendingUp, TrendingDown, Euro, ShoppingCart, Wrench, Users } from "lucide-react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts";
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, isWithinInterval } from "date-fns";
 import { pt } from "date-fns/locale";
@@ -244,6 +246,13 @@ export default function Reports() {
             </CardContent>
           </Card>
         </div>
+
+        <Link href="/profitability">
+          <Button variant="outline" className="w-full gap-2 mb-6" data-testid="link-profitability">
+            <TrendingUp className="w-4 h-4" />
+            Rentabilidade por Cliente
+          </Button>
+        </Link>
 
         <Tabs defaultValue="financeiro" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
