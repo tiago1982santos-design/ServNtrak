@@ -1493,7 +1493,7 @@ function EditClientDialog({ client }: { client: Client }) {
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
-                    <Input placeholder="912 345 678" className="rounded-xl" data-testid="input-client-phone" {...field} value={field.value || ""} />
+                    <Input placeholder="Telefone" className="rounded-xl" data-testid="input-client-phone" {...field} value={field.value || ""} />
                   </FormControl>
                 </FormItem>
               )}
@@ -1506,7 +1506,7 @@ function EditClientDialog({ client }: { client: Client }) {
                 <FormItem>
                   <FormLabel>WhatsApp (se diferente do telefone)</FormLabel>
                   <FormControl>
-                    <Input placeholder="+351 912 345 678" className="rounded-xl" data-testid="input-client-whatsapp" {...field} value={field.value || ""} />
+                    <Input placeholder="WhatsApp" className="rounded-xl" data-testid="input-client-whatsapp" {...field} value={field.value || ""} />
                   </FormControl>
                 </FormItem>
               )}
@@ -1519,7 +1519,7 @@ function EditClientDialog({ client }: { client: Client }) {
                 <FormItem>
                   <FormLabel>Facebook Messenger (username)</FormLabel>
                   <FormControl>
-                    <Input placeholder="username ou ID" className="rounded-xl" data-testid="input-client-messenger" {...field} value={field.value || ""} />
+                    <Input placeholder="Messenger" className="rounded-xl" data-testid="input-client-messenger" {...field} value={field.value || ""} />
                   </FormControl>
                 </FormItem>
               )}

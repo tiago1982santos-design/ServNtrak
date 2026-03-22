@@ -95,7 +95,7 @@ export function CreateClientDialog() {
                 <FormItem>
                   <FormLabel>Nome do Cliente</FormLabel>
                   <FormControl>
-                    <Input placeholder="João Silva" {...field} className="rounded-xl" />
+                    <Input placeholder="Nome do cliente" {...field} className="rounded-xl" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -110,7 +110,7 @@ export function CreateClientDialog() {
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
                     <FormControl>
-                      <Input placeholder="912 345 678" {...field} className="rounded-xl" />
+                      <Input placeholder="Telefone" {...field} className="rounded-xl" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -123,7 +123,7 @@ export function CreateClientDialog() {
                   <FormItem>
                     <FormLabel>E-mail</FormLabel>
                     <FormControl>
-                      <Input placeholder="joao@exemplo.com" {...field} className="rounded-xl" />
+                      <Input placeholder="Email" {...field} className="rounded-xl" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

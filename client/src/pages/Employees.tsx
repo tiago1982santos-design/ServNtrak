@@ -400,7 +400,7 @@ function EmployeeForm({
               <FormControl>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input {...field} type="tel" className="pl-9" placeholder="912 345 678" data-testid="input-employee-phone" />
+                  <Input {...field} type="tel" className="pl-9" placeholder="Telefone" data-testid="input-employee-phone" />
                 </div>
               </FormControl>
               <FormMessage />
@@ -417,7 +417,7 @@ function EmployeeForm({
               <FormControl>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input {...field} type="email" className="pl-9" placeholder="email@exemplo.pt" data-testid="input-employee-email" />
+                  <Input {...field} type="email" className="pl-9" placeholder="Email" data-testid="input-employee-email" />
                 </div>
               </FormControl>
               <FormMessage />

@@ -505,7 +505,7 @@ export default function Login() {
                     <Input
                       id="register-email"
                       type="email"
-                      placeholder="email@exemplo.com"
+                      placeholder="Email"
                       value={registerForm.email}
                       onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
                       className="pl-10"

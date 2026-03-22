@@ -718,7 +718,7 @@ function AddStoreDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" {...field} placeholder="email@loja.pt" data-testid="input-store-email" />
+                    <Input type="email" {...field} placeholder="Email" data-testid="input-store-email" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
