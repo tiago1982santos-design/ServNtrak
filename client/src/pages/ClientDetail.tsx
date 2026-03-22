@@ -695,7 +695,15 @@ export default function ClientDetail() {
           <TabsContent value="history" className="space-y-4">
             <div className="flex justify-between items-center mb-2">
               <h3 className="font-bold text-lg">Registos de Serviço</h3>
-              <AddServiceLogDialog clientId={clientId} />
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/expense-notes?clientId=${clientId}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" /> Notas
+                </Link>
+                <AddServiceLogDialog clientId={clientId} />
+              </div>
             </div>
 
             {logs?.length === 0 ? (
@@ -721,21 +729,14 @@ export default function ClientDetail() {
                         </Badge>
                       )}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => handleGenerateNote(log.id)}
-                      disabled={generatingNoteId === log.id}
+                    <Link
+                      href={`/expense-notes/new?serviceLogId=${log.id}&clientId=${clientId}`}
+                      className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                       data-testid={`button-generate-note-${log.id}`}
                     >
-                      {generatingNoteId === log.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <FileText className="h-3.5 w-3.5" />
-                      )}
-                      Gerar Nota
-                    </Button>
+                      <FileText className="h-3.5 w-3.5" />
+                      Criar Nota
+                    </Link>
                   </div>
                 </div>
               ))

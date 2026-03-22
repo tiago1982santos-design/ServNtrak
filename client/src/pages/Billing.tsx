@@ -1,6 +1,6 @@
 import { useClients } from "@/hooks/use-clients";
 import { BottomNav } from "@/components/BottomNav";
-import { Loader2, Euro, Clock, Users, CalendarDays } from "lucide-react";
+import { Loader2, Euro, Clock, Users, CalendarDays, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { BackButton } from "@/components/BackButton";
 
@@ -16,9 +16,17 @@ export default function Billing() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="pt-8 px-6 mb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <BackButton />
-          <h1 className="text-2xl font-display font-bold text-foreground">Faturação</h1>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <BackButton />
+            <h1 className="text-2xl font-display font-bold text-foreground">Faturação</h1>
+          </div>
+          <Link
+            href="/expense-notes"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" /> Notas de Despesa
+          </Link>
         </div>
         <p className="text-sm text-muted-foreground">Gestão de valores de clientes</p>
       </div>
