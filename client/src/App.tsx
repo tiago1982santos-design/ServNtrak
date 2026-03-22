@@ -29,6 +29,9 @@ import Finances from "@/pages/Finances";
 import Exports from "@/pages/Exports";
 import Employees from "@/pages/Employees";
 import PendingTasks from "@/pages/PendingTasks";
+import ExpenseNotes from "@/pages/ExpenseNotes";
+import ExpenseNoteNew from "@/pages/ExpenseNoteNew";
+import ExpenseNoteDetail from "@/pages/ExpenseNoteDetail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -73,6 +76,9 @@ function Router() {
         <Route path="/exports" component={Exports} />
         <Route path="/employees" component={Employees} />
         <Route path="/pending-tasks" component={PendingTasks} />
+        <Route path="/expense-notes" component={ExpenseNotes} />
+        <Route path="/expense-notes/new" component={ExpenseNoteNew} />
+        <Route path="/expense-notes/:id" component={ExpenseNoteDetail} />
         <Route component={NotFound} />
       </Switch>
       <AssistantChat />
