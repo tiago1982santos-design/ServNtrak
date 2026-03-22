@@ -36,7 +36,6 @@ export interface VisitaConcluida {
 
 export interface OpcoesGeofencing {
   raioMetros?: number;
-  intervaloMs?: number;
   onEntrada?: (evento: EventoVisita) => void;
   onSaida?: (visita: VisitaConcluida) => void;
   onErro?: (erro: GeolocationPositionError) => void;
@@ -67,7 +66,7 @@ function calcularDistanciaMetros(lat1: number, lon1: number, lat2: number, lon2:
 }
 
 export function useGeofencing(clientes: ClienteComLocalizacao[], opcoes: OpcoesGeofencing = {}): EstadoGeofencing {
-  const { raioMetros = 75, intervaloMs = 30_000, onEntrada, onSaida, onErro } = opcoes;
+  const { raioMetros = 75, onEntrada, onSaida, onErro } = opcoes;
 
   const [ativo, setAtivo] = useState(false);
   const [posicaoAtual, setPosicaoAtual] = useState<GeolocationCoordinates | null>(null);
@@ -79,7 +78,6 @@ export function useGeofencing(clientes: ClienteComLocalizacao[], opcoes: OpcoesG
   const visitaAtivaRef = useRef<VisitaAtiva | null>(null);
   const clientesRef = useRef<ClienteComLocalizacao[]>(clientes);
   const watchIdRef = useRef<number | null>(null);
-  const intervaloRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { visitaAtivaRef.current = visitaAtiva; }, [visitaAtiva]);
   useEffect(() => { clientesRef.current = clientes; }, [clientes]);
@@ -162,20 +160,16 @@ export function useGeofencing(clientes: ClienteComLocalizacao[], opcoes: OpcoesG
     setErro(null);
     watchIdRef.current = navigator.geolocation.watchPosition(processarPosicao, processarErro, {
       enableHighAccuracy: true,
-      maximumAge: 15_000,
+      maximumAge: 30_000,
       timeout: 20_000,
     });
-    intervaloRef.current = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(processarPosicao, processarErro, {
-        enableHighAccuracy: true,
-        timeout: 10_000,
-      });
-    }, intervaloMs);
-  }, [processarPosicao, processarErro, intervaloMs]);
+  }, [processarPosicao, processarErro]);
 
   const parar = useCallback(() => {
-    if (watchIdRef.current !== null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
-    if (intervaloRef.current !== null) { clearInterval(intervaloRef.current); intervaloRef.current = null; }
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
     setAtivo(false);
     setVisitaAtiva(null);
   }, []);

@@ -320,7 +320,6 @@ export default function Home() {
 
   const geo = useGeofencing(clientesGeofencing, {
     raioMetros: 75,
-    intervaloMs: 30_000,
     onEntrada: handleEntrada,
   });
 
