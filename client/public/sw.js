@@ -93,9 +93,10 @@ self.addEventListener('push', (event) => {
       icon: data.icon || '/icon-192.png',
       badge: data.badge || '/icon-192.png',
       tag: data.tag || 'servntrak-notification',
-      data: { url: data.url || '/' },
+      data: { url: data.url || '/', appointmentId: data.appointmentId || null },
       vibrate: [200, 100, 200],
-      requireInteraction: false,
+      requireInteraction: !!(data.actions && data.actions.length > 0),
+      actions: data.actions || [],
     };
 
     event.waitUntil(
@@ -109,17 +110,31 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || '/';
+  const { url, appointmentId } = event.notification.data || {};
+  const action = event.action; // 'sim', 'nao' ou '' (clique no corpo)
 
+  if (appointmentId && (action === 'sim' || action === 'nao')) {
+    event.waitUntil(
+      fetch(`/api/appointments/${appointmentId}/visit-response`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed: action === 'sim' }),
+      }).catch(() => {})
+    );
+    return;
+  }
+
+  const targetUrl = url || '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(url);
+          client.navigate(targetUrl);
           return client.focus();
         }
       }
-      return self.clients.openWindow(url);
+      return self.clients.openWindow(targetUrl);
     })
   );
 });

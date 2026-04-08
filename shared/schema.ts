@@ -59,6 +59,7 @@ export const appointments = pgTable("appointments", {
   type: text("type").notNull(), // 'Garden', 'Pool', 'Jacuzzi', 'General'
   notes: text("notes"),
   isCompleted: boolean("is_completed").default(false),
+  pushNotifiedAt: timestamp("push_notified_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

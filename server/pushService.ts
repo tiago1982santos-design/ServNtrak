@@ -48,7 +48,16 @@ export async function removeSubscription(endpoint: string, userId?: string): Pro
 
 export async function sendPushToUser(
   userId: string,
-  payload: { title: string; body: string; icon?: string; badge?: string; url?: string; tag?: string }
+  payload: {
+    title: string;
+    body: string;
+    icon?: string;
+    badge?: string;
+    url?: string;
+    tag?: string;
+    appointmentId?: number;
+    actions?: { action: string; title: string }[];
+  }
 ): Promise<{ sent: number; failed: number }> {
   const subs = await db
     .select()

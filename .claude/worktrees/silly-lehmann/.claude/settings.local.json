@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npm:*)",
+      "Bash(where node:*)",
+      "Read(//c/Program Files/nodejs/node_modules/npm/bin/**)",
+      "Bash(npx tsx:*)"
+    ]
+  }
+}

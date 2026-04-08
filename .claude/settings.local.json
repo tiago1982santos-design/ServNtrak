@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(node -e \"const webpush = require\\(''./node_modules/web-push''\\); const keys = webpush.generateVAPIDKeys\\(\\); console.log\\(JSON.stringify\\(keys\\)\\);\" \"D:/AI Projects/ServNtrak-CRM\")",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(npm run:*)",
+      "Bash(node -e \":*)"
+    ]
+  }
+}

@@ -11,10 +11,16 @@ import { z } from "zod";
 import { saveSubscription, removeSubscription, sendPushToUser, getVapidPublicKey } from "./pushService";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return _openai;
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -171,6 +177,28 @@ export async function registerRoutes(
     const userId = req.user!.id;
     await storage.deleteAppointment(Number(req.params.id), userId);
     res.status(204).end();
+  });
+
+  app.post("/api/appointments/:id/visit-response", requireAuth, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { confirmed } = z.object({ confirmed: z.boolean() }).parse(req.body);
+      const userId = req.user!.id;
+
+      if (confirmed) {
+        await db
+          .update(appointments)
+          .set({ isCompleted: true })
+          .where(and(eq(appointments.id, id), eq(appointments.userId, userId)));
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
   });
 
   app.post("/api/appointments/generate-preview", requireAuth, async (req, res) => {
@@ -639,7 +667,7 @@ export async function registerRoutes(
       }
 
       // Call OpenAI Vision to extract text and structured data
-      const response = await openai.chat.completions.create({
+      const response = await getOpenAI().chat.completions.create({
         model: "gpt-4o",
         messages: [
           {
