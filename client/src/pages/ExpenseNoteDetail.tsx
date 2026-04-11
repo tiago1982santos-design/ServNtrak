@@ -347,9 +347,9 @@ export default function ExpenseNoteDetail() {
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={() => {
+              onClick={async () => {
                 try {
-                  const doc = generateExpenseNotePdf(note, lang);
+                  const doc = await generateExpenseNotePdf(note, lang);
                   doc.save(`Nota-${note.noteNumber}.pdf`);
                 } catch {
                   toast({
@@ -364,9 +364,9 @@ export default function ExpenseNoteDetail() {
             <Button
               variant="outline"
               className="w-full gap-2"
-              onClick={() => {
+              onClick={async () => {
                 try {
-                  shareExpenseNotePdf(note, lang);
+                  await shareExpenseNotePdf(note, lang);
                 } catch {
                   toast({
                     title: "Em desenvolvimento",

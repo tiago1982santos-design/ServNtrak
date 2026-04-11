@@ -14,10 +14,10 @@ const PRIMARY_COLOR: [number, number, number] = [83, 129, 53];
 const HEADER_BG: [number, number, number] = [240, 246, 235];
 const EDITED_COLOR: [number, number, number] = [180, 100, 0];
 
-export function generateExpenseNotePdf(
+export async function generateExpenseNotePdf(
   note: ExpenseNoteWithDetails,
   lang?: Language | null
-): jsPDF {
+): Promise<jsPDF> {
   const s = getStrings(lang ?? (note.client as any).preferredLanguage);
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -161,7 +161,7 @@ export function generateExpenseNotePdf(
     doc.text(lines, MARGIN, obsY);
   }
 
-  applyDocumentTemplate(doc);
+  await applyDocumentTemplate(doc);
 
   return doc;
 }
