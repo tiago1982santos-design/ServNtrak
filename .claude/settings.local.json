@@ -7,7 +7,19 @@
       "Bash(taskkill //F //IM node.exe)",
       "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
       "Bash(npm run:*)",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(psql \"postgresql://postgres:PtIDPDMjqoffzYzXRSJoGwZYjlPlXDsy@tramway.proxy.rlwy.net:58274/railway\" -c \"SELECT id, email, username, \\\\\"first_name\\\\\", created_at FROM users ORDER BY created_at;\")",
+      "Bash(npx pg-query:*)",
+      "Bash(node -e ':*)",
+      "Bash(node script/seed-clients.js)",
+      "Bash(mv \"D:\\\\AI Projects\\\\ServNtrak-CRM\\\\.claude\\\\worktrees\\\\beautiful-blackburn\\\\script\\\\seed-clients.js\" \"D:\\\\AI Projects\\\\ServNtrak-CRM\\\\.claude\\\\worktrees\\\\beautiful-blackburn\\\\script\\\\seed-clients.cjs\")",
+      "Bash(node script/seed-clients.cjs)",
+      "Bash(gh pr create --title 'Add production client seed script for Railway database' --body ':*)",
+      "Bash(where gh:*)",
+      "Bash(winget list:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --title 'Add production client seed script for Railway database' --body ':*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)"
     ]
   }
 }
