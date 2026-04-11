@@ -7,6 +7,14 @@ import { BackButton } from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -15,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Tipos locais ───────────────────────────────────────────────────────────────
@@ -60,6 +68,18 @@ export default function ExpenseNoteNew() {
   const [items, setItems] = useState<ItemDraft[]>([]);
   const [notes, setNotes] = useState("");
 
+  // ── Estado do dialog de item ──────────────────────────────────────────────
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [draft, setDraft] = useState<ItemDraft>({
+    description: "",
+    type: "service",
+    quantity: 1,
+    unitPrice: 0,
+    total: 0,
+    sourceType: "manual",
+  });
+
   // ── Auto-criação a partir de service log ──────────────────────────────────
   const fromServiceLog = useMutation({
     mutationFn: async (logId: string) => {
@@ -86,18 +106,26 @@ export default function ExpenseNoteNew() {
   }, [serviceLogIdParam]);
 
   // ── Gestão de itens ───────────────────────────────────────────────────────
-  const addItem = () => {
-    setItems((prev) => [
-      ...prev,
-      {
-        description: "Novo item",
-        type: "service",
-        quantity: 1,
-        unitPrice: 0,
-        total: 0,
-        sourceType: "manual",
-      },
-    ]);
+  const openAddDialog = () => {
+    setEditingIdx(null);
+    setDraft({ description: "", type: "service", quantity: 1, unitPrice: 0, total: 0, sourceType: "manual" });
+    setDialogOpen(true);
+  };
+
+  const openEditDialog = (idx: number) => {
+    setEditingIdx(idx);
+    setDraft({ ...items[idx] });
+    setDialogOpen(true);
+  };
+
+  const handleDialogConfirm = () => {
+    const finalItem: ItemDraft = { ...draft, total: draft.quantity * draft.unitPrice };
+    if (editingIdx === null) {
+      setItems((prev) => [...prev, finalItem]);
+    } else {
+      setItems((prev) => prev.map((item, i) => (i === editingIdx ? finalItem : item)));
+    }
+    setDialogOpen(false);
   };
 
   const removeItem = (idx: number) => {
@@ -187,7 +215,7 @@ export default function ExpenseNoteNew() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground">Itens</h2>
             <button
-              onClick={addItem}
+              onClick={openAddDialog}
               className="text-xs text-primary font-medium flex items-center gap-1 hover:text-primary/80 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" /> Adicionar Item
@@ -204,6 +232,7 @@ export default function ExpenseNoteNew() {
                 <ItemCard
                   key={idx}
                   item={item}
+                  onEdit={() => openEditDialog(idx)}
                   onDelete={() => removeItem(idx)}
                 />
               ))}
@@ -253,8 +282,132 @@ export default function ExpenseNoteNew() {
         </Button>
       </div>
 
+      {/* ── Dialog de item ───────────────────────────────────── */}
+      <ItemDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        isEditing={editingIdx !== null}
+        draft={draft}
+        onDraftChange={setDraft}
+        onConfirm={handleDialogConfirm}
+      />
+
       <BottomNav />
     </div>
+  );
+}
+
+// ── ItemDialog ────────────────────────────────────────────────────────────────
+
+function ItemDialog({
+  open,
+  onOpenChange,
+  isEditing,
+  draft,
+  onDraftChange,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isEditing: boolean;
+  draft: ItemDraft;
+  onDraftChange: (draft: ItemDraft) => void;
+  onConfirm: () => void;
+}) {
+  const computed = draft.quantity * draft.unitPrice;
+  const canConfirm = draft.description.trim().length > 0 && draft.unitPrice >= 0;
+
+  const set = (field: keyof ItemDraft, value: string | number) =>
+    onDraftChange({ ...draft, [field]: value });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-2xl sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? "Editar Item" : "Novo Item"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          {/* Descrição */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Descrição</label>
+            <Input
+              placeholder="Ex: Limpeza de filtros"
+              value={draft.description}
+              onChange={(e) => set("description", e.target.value)}
+              className="rounded-xl"
+              autoFocus
+            />
+          </div>
+
+          {/* Tipo */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Tipo</label>
+            <Select
+              value={draft.type}
+              onValueChange={(v) => set("type", v as ItemDraft["type"])}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="service">Serviço</SelectItem>
+                <SelectItem value="material">Material</SelectItem>
+                <SelectItem value="labor">Mão de obra</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Quantidade + Preço unitário lado a lado */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Quantidade</label>
+              <Input
+                type="number"
+                min={0.1}
+                step={0.5}
+                value={draft.quantity}
+                onChange={(e) => set("quantity", parseFloat(e.target.value) || 0)}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Preço unit.</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">
+                  €
+                </span>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={draft.unitPrice}
+                  onChange={(e) => set("unitPrice", parseFloat(e.target.value) || 0)}
+                  className="rounded-xl pl-7"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Total calculado (read-only) */}
+          <div className="bg-muted/50 rounded-xl px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Total</span>
+            <span className="text-base font-bold text-primary">
+              {computed.toFixed(2)} €
+            </span>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={onConfirm} disabled={!canConfirm}>
+            {isEditing ? "Guardar" : "Adicionar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -262,9 +415,11 @@ export default function ExpenseNoteNew() {
 
 function ItemCard({
   item,
+  onEdit,
   onDelete,
 }: {
   item: ItemDraft;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const subtotal = item.quantity * item.unitPrice;
@@ -292,13 +447,22 @@ function ItemCard({
           </span>
         </div>
       </div>
-      <button
-        onClick={onDelete}
-        className="shrink-0 text-muted-foreground hover:text-destructive transition-colors mt-0.5"
-        data-testid={`remove-item-${item.description}`}
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-1 shrink-0 mt-0.5">
+        <button
+          onClick={onEdit}
+          className="text-muted-foreground hover:text-primary transition-colors"
+          data-testid={`edit-item-${item.description}`}
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onDelete}
+          className="text-muted-foreground hover:text-destructive transition-colors"
+          data-testid={`remove-item-${item.description}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }
