@@ -1348,10 +1348,16 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
       if (!updated) return res.status(404).json({ error: "Nota não encontrada" });
       res.json(updated);
     } catch (error: any) {
+      console.error("PATCH expense-note error:", {
+        message: error?.message,
+        stack: error?.stack,
+        noteId: req.params.id,
+        userId: req.user!.id,
+        body: req.body,
+      });
       if (error?.message?.includes("emitida")) {
         return res.status(403).json({ error: error.message });
       }
-      console.error("Erro ao actualizar nota de despesa:", error);
       res.status(500).json({ error: "Erro interno do servidor" });
     }
   });
