@@ -1319,6 +1319,10 @@ export class DatabaseStorage implements IStorage {
       throw new Error("Não é possível editar uma nota já emitida.");
     }
 
+    if (updates.issueDate && typeof updates.issueDate === "string") {
+      updates.issueDate = new Date(updates.issueDate);
+    }
+
     const [updated] = await db
       .update(expenseNotes)
       .set({ ...updates, updatedAt: new Date() })
