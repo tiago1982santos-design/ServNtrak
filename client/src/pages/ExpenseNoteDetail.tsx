@@ -1,41 +1,65 @@
 import { useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useExpenseNote,
+  useUpdateExpenseNoteItems,
+  useUpdateExpenseNote,
+  useDeleteExpenseNote,
+} from "@/hooks/use-expense-notes";
 import { BottomNav } from "@/components/BottomNav";
 import { BackButton } from "@/components/BackButton";
-import {
-  Loader2, Pencil, Trash2, CheckCircle2, Clock,
-  Download, Share2, AlertTriangle,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { ExpenseNoteWithDetails, ExpenseNoteItem } from "@shared/schema";
-import { generateExpenseNotePdf, shareExpenseNotePdf } from "@/lib/expenseNotesPdf";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
+import {
+  Loader2,
+  Edit2,
+  Trash2,
+  Send,
+  FileText,
+  AlertCircle,
+  Download,
+  Share2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { ExpenseNoteWithDetails } from "@shared/schema";
+import { generateExpenseNotePdf, shareExpenseNotePdf } from "@/lib/expenseNotesPdf";
 
-type EditingItem = {
-  index: number;
+// ── Tipos ─────────────────────────────────────────────────────────────────────
+
+type EditableItem = {
+  id?: number;
   description: string;
-  type: string;
+  type: "service" | "material" | "labor";
   quantity: number;
   unitPrice: number;
+  sourceType: string;
   editReason: string;
-  wasAuto: boolean;
+  // snapshot para detectar alterações em relação ao original
+  _origDescription: string;
+  _origQuantity: number;
+  _origUnitPrice: number;
+  _wasAuto: boolean;
 };
+
+// ── Constantes ────────────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
   service: "Serviço",
@@ -43,131 +67,108 @@ const TYPE_LABELS: Record<string, string> = {
   material: "Material",
 };
 
+const TYPE_BADGE: Record<string, string> = {
+  service: "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400",
+  material: "bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400",
+  labor: "bg-violet-100 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400",
+};
+
+// Detecta se o item foi alterado em relação ao registo "auto" original
+function itemIsEdited(item: EditableItem): boolean {
+  return (
+    item._wasAuto &&
+    (item.description !== item._origDescription ||
+      item.quantity !== item._origQuantity ||
+      item.unitPrice !== item._origUnitPrice)
+  );
+}
+
+// ── Componente principal ───────────────────────────────────────────────────────
+
 export default function ExpenseNoteDetail() {
-  const { id } = useParams();
-  const [, setLocation] = useLocation();
+  const { id } = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
-  const { data: note, isLoading } = useQuery<ExpenseNoteWithDetails>({
-    queryKey: ["/api/expense-notes", id],
-    queryFn: async () => {
-      const res = await fetch(`/api/expense-notes/${id}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Nota não encontrada");
-      return res.json();
-    },
-  });
+  const noteId = parseInt(id!);
+  const { data: note, isLoading } = useExpenseNote(noteId);
+  const updateNoteItems = useUpdateExpenseNoteItems();
+  const updateNote = useUpdateExpenseNote();
+  const deleteNote = useDeleteExpenseNote();
 
-  const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
+  // ── Estado dos dialogs ────────────────────────────────────────────────────
+  const [emitOpen, setEmitOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editItemsOpen, setEditItemsOpen] = useState(false);
+  const [editingItems, setEditingItems] = useState<EditableItem[]>([]);
 
-  const updateItems = useMutation({
-    mutationFn: async (items: Partial<ExpenseNoteItem>[]) => {
-      const res = await fetch(`/api/expense-notes/${id}/items`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Erro ao actualizar itens");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/expense-notes", id] });
-      setEditingItem(null);
-      toast({ title: "Guardado", description: "Itens actualizados" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const emitNote = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/expense-notes/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "emitida", issueDate: new Date().toISOString() }),
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Erro ao emitir nota");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/expense-notes", id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/expense-notes"] });
-      toast({ title: "Emitida", description: "Nota de despesa emitida com sucesso" });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const deleteNote = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/expense-notes/${id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Erro ao apagar nota");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/expense-notes"] });
-      setLocation("/expense-notes");
-    },
-    onError: (err: Error) => {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const openEdit = (item: ExpenseNoteItem, index: number) => {
-    setEditingItem({
-      index,
-      description: item.description,
-      type: item.type,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      editReason: item.editReason ?? "",
-      wasAuto: item.sourceType === "auto",
-    });
+  // ── Abrir dialog de edição de items ───────────────────────────────────────
+  const openEditItems = () => {
+    if (!note) return;
+    setEditingItems(
+      note.items.map((item) => ({
+        id: item.id,
+        description: item.description,
+        type: item.type as EditableItem["type"],
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        sourceType: item.sourceType,
+        editReason: item.editReason ?? "",
+        _origDescription: item.description,
+        _origQuantity: item.quantity,
+        _origUnitPrice: item.unitPrice,
+        _wasAuto: item.sourceType === "auto",
+      }))
+    );
+    setEditItemsOpen(true);
   };
 
-  const confirmEdit = () => {
-    if (!note || !editingItem) return;
-
-    const updatedItems = note.items.map((item, idx) => {
-      if (idx !== editingItem.index) {
-        return {
-          description: item.description,
-          type: item.type,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          total: item.total,
-          sourceType: item.sourceType,
-          editReason: item.editReason,
-        };
-      }
-      const valueChanged =
-        item.description !== editingItem.description ||
-        item.quantity !== editingItem.quantity ||
-        item.unitPrice !== editingItem.unitPrice;
-      const isNowEdited = valueChanged && item.sourceType === "auto";
-      return {
-        description: editingItem.description,
-        type: editingItem.type,
-        quantity: editingItem.quantity,
-        unitPrice: editingItem.unitPrice,
-        total: editingItem.quantity * editingItem.unitPrice,
-        sourceType: isNowEdited ? "edited" : item.sourceType,
-        editReason: isNowEdited ? editingItem.editReason : item.editReason,
-      };
-    });
-
-    updateItems.mutate(updatedItems);
+  // ── Guardar items editados ────────────────────────────────────────────────
+  const handleSaveItems = async () => {
+    const invalid = editingItems.filter(
+      (i) => itemIsEdited(i) && !i.editReason.trim()
+    );
+    if (invalid.length > 0) {
+      toast({
+        title: "Motivo obrigatório",
+        description: `Preenche o motivo para: ${invalid.map((i) => i.description).join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    await updateNoteItems.mutateAsync({
+      id: noteId,
+      items: editingItems.map((i) => ({
+        description: i.description,
+        type: i.type,
+        quantity: i.quantity,
+        unitPrice: i.unitPrice,
+        total: i.quantity * i.unitPrice,
+        sourceType: itemIsEdited(i) ? "edited" : i.sourceType,
+        editReason: itemIsEdited(i) ? i.editReason : i.editReason || null,
+        expenseNoteId: noteId,
+      })),
+    } as any);
+    setEditItemsOpen(false);
   };
 
+  // ── Emitir nota ───────────────────────────────────────────────────────────
+  const handleEmit = async () => {
+    await updateNote.mutateAsync({
+      id: noteId,
+      status: "emitida",
+      issueDate: new Date() as any,
+    });
+    setEmitOpen(false);
+  };
+
+  // ── Apagar nota ───────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    await deleteNote.mutateAsync(noteId);
+    navigate("/expense-notes");
+  };
+
+  // ── Loading / Not found ───────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -179,7 +180,10 @@ export default function ExpenseNoteDetail() {
   if (!note) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <p className="text-muted-foreground">Nota não encontrada</p>
+        <div className="text-center space-y-2">
+          <FileText className="w-10 h-10 text-muted-foreground mx-auto" />
+          <p className="text-muted-foreground">Nota não encontrada</p>
+        </div>
       </div>
     );
   }
@@ -188,298 +192,266 @@ export default function ExpenseNoteDetail() {
   const total = note.items.reduce((s, i) => s + i.total, 0);
   const lang = (note.client as any).preferredLanguage;
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <div className="pt-8 px-6 mb-4">
-        <div className="flex items-center gap-2 mb-1">
-          <BackButton />
-          <h1 className="text-xl font-display font-bold text-foreground">
-            Nota #{note.noteNumber}
-          </h1>
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <div className="pt-8 px-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BackButton />
+            <div>
+              <h1 className="text-xl font-display font-bold text-foreground">
+                {note.noteNumber}
+              </h1>
+            </div>
+          </div>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
+              isDraft
+                ? "bg-muted text-muted-foreground"
+                : "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+            )}
+          >
+            {isDraft ? "Rascunho" : "Emitida"}
+          </span>
         </div>
       </div>
 
-      {/* Info card */}
-      <div className="px-6 mb-4">
-        <div className="bg-card rounded-2xl border border-border/50 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            {isDraft ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                <Clock className="w-3.5 h-3.5" /> Rascunho
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                <CheckCircle2 className="w-3.5 h-3.5" /> Emitida
-              </span>
-            )}
-            <span className="text-xs text-muted-foreground">
-              {note.issueDate
-                ? format(new Date(note.issueDate), "d MMM yyyy", { locale: pt })
-                : format(new Date(note.createdAt!), "d MMM yyyy", { locale: pt })}
-            </span>
-          </div>
+      <div className="px-6 space-y-4">
+        {/* ── Info do cliente ───────────────────────────────────── */}
+        <div className="bg-card border rounded-xl p-4 shadow-sm space-y-2">
           <div>
             <p className="text-xs text-muted-foreground">Cliente</p>
             <p className="font-semibold text-foreground">{note.client.name}</p>
             {note.client.address && (
-              <p className="text-xs text-muted-foreground">{note.client.address}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {note.client.address}
+              </p>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {note.issueDate
+              ? `Emitida em ${format(new Date(note.issueDate), "d 'de' MMMM yyyy", { locale: pt })}`
+              : `Criada em ${format(new Date(note.createdAt!), "d 'de' MMMM yyyy", { locale: pt })}`}
+          </p>
           {note.serviceLog && (
             <p className="text-xs text-muted-foreground italic">
               Referente a serviço de{" "}
-              {note.serviceLog.date
-                ? format(new Date(note.serviceLog.date), "d MMM yyyy", { locale: pt })
+              {(note.serviceLog as any).date
+                ? format(new Date((note.serviceLog as any).date), "d 'de' MMMM yyyy", { locale: pt })
                 : "—"}
             </p>
           )}
-          {note.notes && (
-            <p className="text-xs text-muted-foreground border-t border-border/30 pt-2">
-              {note.notes}
-            </p>
-          )}
         </div>
-      </div>
 
-      {/* Items */}
-      <div className="px-6 mb-4">
-        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
-          {note.items.map((item, idx) => (
-            <div
-              key={item.id}
-              className={`p-4 ${idx !== note.items.length - 1 ? "border-b border-border/40" : ""}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-                      {TYPE_LABELS[item.type] ?? item.type}
-                    </span>
-                    {item.sourceType === "edited" && (
-                      <span className="text-xs text-amber-600 flex items-center gap-0.5">
-                        <AlertTriangle className="w-3 h-3" /> Editado
+        {/* ── Lista de items (read-only) ────────────────────────── */}
+        <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+          {note.items.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Sem itens
+            </p>
+          ) : (
+            note.items.map((item, idx) => (
+              <div
+                key={item.id}
+                className={cn(
+                  "p-4",
+                  idx !== note.items.length - 1 && "border-b border-border/40"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={cn(
+                          "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium",
+                          TYPE_BADGE[item.type] ?? "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {TYPE_LABELS[item.type] ?? item.type}
                       </span>
+                      {item.sourceType === "edited" && (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400">
+                          <AlertCircle className="w-2.5 h-2.5" /> Editado
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-foreground">
+                      {item.description}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.quantity} × {item.unitPrice.toFixed(2)} €{" "}
+                      = {item.total.toFixed(2)} €
+                    </p>
+                    {item.sourceType === "edited" && item.editReason && (
+                      <p className="text-xs text-orange-600 italic mt-0.5">
+                        Motivo: {item.editReason}
+                      </p>
                     )}
                   </div>
-                  <p className="text-sm font-medium text-foreground mt-1">{item.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {item.quantity} × {item.unitPrice.toFixed(2)} €
-                  </p>
-                  {item.sourceType === "edited" && item.editReason && (
-                    <p className="text-xs text-amber-600 mt-1 italic">
-                      Motivo: {item.editReason}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right shrink-0 flex flex-col items-end gap-2">
-                  <span className="font-bold text-sm text-primary">{item.total.toFixed(2)} €</span>
-                  {isDraft && (
-                    <button
-                      onClick={() => openEdit(item, idx)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label="Editar item"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  )}
+                  <span className="font-bold text-sm text-primary shrink-0">
+                    {item.total.toFixed(2)} €
+                  </span>
                 </div>
               </div>
-            </div>
-          ))}
-          <div className="p-4 bg-muted/30 border-t border-border/40 flex justify-between items-center">
-            <span className="font-semibold text-sm">Total</span>
-            <span className="font-bold text-lg text-primary">{total.toFixed(2)} €</span>
+            ))
+          )}
+          {/* Total */}
+          <div className="p-4 bg-muted/30 border-t border-border/40 flex items-center justify-between">
+            <span className="text-sm font-semibold text-foreground">Total</span>
+            <span className="text-lg font-bold text-primary">
+              {total.toFixed(2)} €
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Actions */}
-      <div className="px-6 space-y-3">
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => shareExpenseNotePdf(note, lang)}
-        >
-          <Share2 className="w-4 h-4 mr-2" /> Partilhar PDF
-        </Button>
-
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            const doc = generateExpenseNotePdf(note, lang);
-            doc.save(`Nota-Despesa-${note.noteNumber}.pdf`);
-          }}
-        >
-          <Download className="w-4 h-4 mr-2" /> Descarregar PDF
-        </Button>
-
-        {isDraft && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
-                <CheckCircle2 className="w-4 h-4 mr-2" /> Emitir Nota
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Emitir nota de despesa?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Após emitida, a nota fica bloqueada para edição. Esta acção não pode ser revertida.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => emitNote.mutate()}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  Emitir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+        {/* ── Notas ─────────────────────────────────────────────── */}
+        {note.notes && (
+          <div className="bg-card border rounded-xl p-4 shadow-sm">
+            <p className="text-xs text-muted-foreground mb-1">Observações</p>
+            <p className="text-sm text-foreground">{note.notes}</p>
+          </div>
         )}
 
+        {/* ── Acções — Rascunho ─────────────────────────────────── */}
         {isDraft && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="w-full">
-                <Trash2 className="w-4 h-4 mr-2" /> Apagar Nota
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Apagar nota de despesa?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acção não pode ser revertida. A nota e todos os seus itens serão eliminados.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => deleteNote.mutate()}
-                  className="bg-destructive hover:bg-destructive/90"
-                >
-                  Apagar
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={openEditItems}
+            >
+              <Edit2 className="w-4 h-4" /> Editar Items
+            </Button>
+            <Button
+              className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-600"
+              onClick={() => setEmitOpen(true)}
+            >
+              <Send className="w-4 h-4" /> Emitir Nota
+            </Button>
+            <Button
+              variant="destructive"
+              className="w-full gap-2"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="w-4 h-4" /> Apagar Nota
+            </Button>
+          </div>
+        )}
+
+        {/* ── Acções — Emitida ──────────────────────────────────── */}
+        {!isDraft && (
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => {
+                try {
+                  const doc = generateExpenseNotePdf(note, lang);
+                  doc.save(`Nota-${note.noteNumber}.pdf`);
+                } catch {
+                  toast({
+                    title: "Em desenvolvimento",
+                    description: "Funcionalidade disponível em breve",
+                  });
+                }
+              }}
+            >
+              <Download className="w-4 h-4" /> Descarregar PDF
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => {
+                try {
+                  shareExpenseNotePdf(note, lang);
+                } catch {
+                  toast({
+                    title: "Em desenvolvimento",
+                    description: "Funcionalidade disponível em breve",
+                  });
+                }
+              }}
+            >
+              <Share2 className="w-4 h-4" /> Partilhar PDF
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* Edit Item Modal */}
-      <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <DialogContent>
+      {/* ── Dialog: Editar Items ─────────────────────────────────── */}
+      <ItemsEditDialog
+        open={editItemsOpen}
+        onOpenChange={setEditItemsOpen}
+        items={editingItems}
+        onItemsChange={setEditingItems}
+        onSave={handleSaveItems}
+        isSaving={updateNoteItems.isPending}
+      />
+
+      {/* ── Dialog: Confirmar Emissão ─────────────────────────────── */}
+      <Dialog open={emitOpen} onOpenChange={setEmitOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Editar Item</DialogTitle>
+            <DialogTitle>Emitir nota de despesa?</DialogTitle>
           </DialogHeader>
-          {editingItem && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium block mb-1">Descrição</label>
-                <Input
-                  value={editingItem.description}
-                  onChange={(e) =>
-                    setEditingItem((prev) => prev ? { ...prev, description: e.target.value } : null)
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-sm font-medium block mb-1">Tipo</label>
-                  <Select
-                    value={editingItem.type}
-                    onValueChange={(v) =>
-                      setEditingItem((prev) => prev ? { ...prev, type: v } : null)
-                    }
-                  >
-                    <SelectTrigger className="text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="service">Serviço</SelectItem>
-                      <SelectItem value="labor">Mão de obra</SelectItem>
-                      <SelectItem value="material">Material</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">Qtd</label>
-                  <Input
-                    type="number"
-                    min={0.01}
-                    step={0.5}
-                    value={editingItem.quantity}
-                    onChange={(e) =>
-                      setEditingItem((prev) =>
-                        prev ? { ...prev, quantity: parseFloat(e.target.value) || 0 } : null
-                      )
-                    }
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium block mb-1">€/un</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    value={editingItem.unitPrice}
-                    onChange={(e) =>
-                      setEditingItem((prev) =>
-                        prev ? { ...prev, unitPrice: parseFloat(e.target.value) || 0 } : null
-                      )
-                    }
-                  />
-                </div>
-              </div>
-
-              <p className="text-right text-sm font-semibold text-primary">
-                Subtotal: {(editingItem.quantity * editingItem.unitPrice).toFixed(2)} €
-              </p>
-
-              {editingItem.wasAuto && (
-                <div>
-                  <label className="text-sm font-medium block mb-1">
-                    Motivo da alteração{" "}
-                    <span className="text-destructive">*</span>
-                    <span className="text-xs font-normal text-muted-foreground ml-1">
-                      (obrigatório se alterar valores do registo original)
-                    </span>
-                  </label>
-                  <Textarea
-                    placeholder="Justifica a diferença em relação ao registo original..."
-                    value={editingItem.editReason}
-                    onChange={(e) =>
-                      setEditingItem((prev) =>
-                        prev ? { ...prev, editReason: e.target.value } : null
-                      )
-                    }
-                    rows={2}
-                    className="resize-none text-sm"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingItem(null)}>
+          <p className="text-sm text-muted-foreground">
+            Após emitida, a nota fica bloqueada para edição. Esta acção não
+            pode ser revertida.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setEmitOpen(false)}
+              disabled={updateNote.isPending}
+            >
               Cancelar
             </Button>
             <Button
-              onClick={confirmEdit}
-              disabled={
-                updateItems.isPending ||
-                (editingItem?.wasAuto && !editingItem.editReason.trim())
-              }
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleEmit}
+              disabled={updateNote.isPending}
             >
-              {updateItems.isPending && (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              {updateNote.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Emitir"
               )}
-              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Confirmar Apagar ─────────────────────────────── */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Apagar nota de despesa?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Esta acção é irreversível. A nota e todos os seus itens serão
+            eliminados.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleteNote.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteNote.isPending}
+            >
+              {deleteNote.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Apagar"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -487,5 +459,189 @@ export default function ExpenseNoteDetail() {
 
       <BottomNav />
     </div>
+  );
+}
+
+// ── ItemsEditDialog ───────────────────────────────────────────────────────────
+// Dialog que mostra todos os items em modo edição inline (sem diálogos aninhados).
+// Items com sourceType "auto" que forem alterados ficam marcados como "editado"
+// e exigem preenchimento do campo "Motivo da alteração".
+
+function ItemsEditDialog({
+  open,
+  onOpenChange,
+  items,
+  onItemsChange,
+  onSave,
+  isSaving,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  items: EditableItem[];
+  onItemsChange: (items: EditableItem[]) => void;
+  onSave: () => void;
+  isSaving: boolean;
+}) {
+  const updateItem = (
+    idx: number,
+    field: keyof EditableItem,
+    value: string | number
+  ) => {
+    onItemsChange(
+      items.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const canSave =
+    items.length > 0 &&
+    !items.some((i) => itemIsEdited(i) && !i.editReason.trim());
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-2xl sm:max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar Items</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-1">
+          {items.map((item, idx) => {
+            const edited = itemIsEdited(item);
+            const subtotal = item.quantity * item.unitPrice;
+
+            return (
+              <div
+                key={idx}
+                className={cn(
+                  "rounded-xl border p-4 space-y-3",
+                  edited
+                    ? "border-orange-300 bg-orange-50/50 dark:border-orange-700/40 dark:bg-orange-900/10"
+                    : "border-border bg-muted/20"
+                )}
+              >
+                {/* Aviso de item editado */}
+                {edited && (
+                  <div className="flex items-center gap-1.5 text-orange-600 text-xs font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    Alterado em relação ao registo original — preenche o motivo
+                  </div>
+                )}
+
+                {/* Descrição */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-foreground">
+                    Descrição
+                  </label>
+                  <Input
+                    value={item.description}
+                    onChange={(e) =>
+                      updateItem(idx, "description", e.target.value)
+                    }
+                    className="rounded-xl text-sm"
+                  />
+                </div>
+
+                {/* Tipo + Quantidade + Preço */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">
+                      Tipo
+                    </label>
+                    <Select
+                      value={item.type}
+                      onValueChange={(v) => updateItem(idx, "type", v)}
+                    >
+                      <SelectTrigger className="rounded-xl text-xs h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="service">Serviço</SelectItem>
+                        <SelectItem value="material">Material</SelectItem>
+                        <SelectItem value="labor">Mão de obra</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">
+                      Qtd.
+                    </label>
+                    <Input
+                      type="number"
+                      min={0.01}
+                      step={0.5}
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateItem(
+                          idx,
+                          "quantity",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      className="rounded-xl text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">
+                      €/un
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={item.unitPrice}
+                      onChange={(e) =>
+                        updateItem(
+                          idx,
+                          "unitPrice",
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      className="rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Subtotal calculado */}
+                <p className="text-xs text-right font-semibold text-primary">
+                  Subtotal: {subtotal.toFixed(2)} €
+                </p>
+
+                {/* Motivo da alteração (obrigatório se editado) */}
+                {edited && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-foreground">
+                      Motivo da alteração{" "}
+                      <span className="text-destructive">*</span>
+                    </label>
+                    <Textarea
+                      placeholder="Justifica a diferença em relação ao registo original..."
+                      value={item.editReason}
+                      onChange={(e) =>
+                        updateItem(idx, "editReason", e.target.value)
+                      }
+                      rows={2}
+                      className="resize-none text-xs rounded-xl"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+          >
+            Cancelar
+          </Button>
+          <Button onClick={onSave} disabled={!canSave || isSaving}>
+            {isSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
