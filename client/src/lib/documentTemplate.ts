@@ -11,8 +11,10 @@ const LOGO_Y = 10;
 
 export const CONTENT_START_Y = LOGO_Y + LOGO_SIZE + 8;
 
-const FOOTER_LINE_Y = PAGE_HEIGHT - 18;
-const FOOTER_TEXT_Y = PAGE_HEIGHT - 11;
+const BANKING_Y = PAGE_HEIGHT - 26;
+const FOOTER_LINE_Y = PAGE_HEIGHT - 20;
+const LEGAL_Y = PAGE_HEIGHT - 15;
+const FOOTER_TEXT_Y = PAGE_HEIGHT - 9;
 const FOOTER_COLOR: [number, number, number] = [83, 129, 53];
 
 const LOGO_BASE64 =
@@ -42,10 +44,34 @@ function _drawHeader(doc: jsPDF): void {
 }
 
 function _drawFooter(doc: jsPDF): void {
+  // Dados bancários — linha única, letra pequena, acima da linha verde
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(100, 100, 100);
+  doc.text(
+    "Caixa Geral de Depósitos: PT50 0035 0405 0001 2321 4004 3  ·  BIC: CGDIPTPL     |     Banco Montepio: PT50 0036 0275 9910 0034 6181 1  ·  BIC: MPIOPTPL     |     MBWay: +351 918 297 502",
+    PAGE_WIDTH / 2,
+    BANKING_Y,
+    { align: "center" }
+  );
+
+  // Linha verde
   doc.setDrawColor(...FOOTER_COLOR);
   doc.setLineWidth(0.8);
   doc.line(MARGIN, FOOTER_LINE_Y, PAGE_WIDTH - MARGIN, FOOTER_LINE_Y);
 
+  // Nota legal — entre a linha e o contacto
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6);
+  doc.setTextColor(150, 150, 150);
+  doc.text(
+    "Este documento não constitui fatura fiscal nem tem validade legal para efeitos tributários.",
+    PAGE_WIDTH / 2,
+    LEGAL_Y,
+    { align: "center" }
+  );
+
+  // Contacto
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...FOOTER_COLOR);
@@ -56,6 +82,7 @@ function _drawFooter(doc: jsPDF): void {
     { align: "center" }
   );
 
+  // Reset
   doc.setDrawColor(0);
   doc.setTextColor(0);
 }
