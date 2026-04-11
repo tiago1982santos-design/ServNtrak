@@ -1315,7 +1315,7 @@ export class DatabaseStorage implements IStorage {
       .from(expenseNotes)
       .where(and(eq(expenseNotes.id, id), eq(expenseNotes.userId, userId)));
     if (!existing) return undefined;
-    if (existing.status === "issued") {
+    if (existing.status === "emitida") {
       throw new Error("Não é possível editar uma nota já emitida.");
     }
 
@@ -1337,7 +1337,7 @@ export class DatabaseStorage implements IStorage {
       .from(expenseNotes)
       .where(and(eq(expenseNotes.id, noteId), eq(expenseNotes.userId, userId)));
     if (!note) throw new Error("Nota não encontrada.");
-    if (note.status === "issued") throw new Error("Não é possível editar itens de uma nota já emitida.");
+    if (note.status === "emitida") throw new Error("Não é possível editar itens de uma nota já emitida.");
 
     await db
       .delete(expenseNoteItems)
