@@ -13,7 +13,13 @@
       "Bash(node -e ':*)",
       "Bash(node script/seed-clients.js)",
       "Bash(mv \"D:\\\\AI Projects\\\\ServNtrak-CRM\\\\.claude\\\\worktrees\\\\beautiful-blackburn\\\\script\\\\seed-clients.js\" \"D:\\\\AI Projects\\\\ServNtrak-CRM\\\\.claude\\\\worktrees\\\\beautiful-blackburn\\\\script\\\\seed-clients.cjs\")",
-      "Bash(node script/seed-clients.cjs)"
+      "Bash(node script/seed-clients.cjs)",
+      "Bash(gh pr create --title 'Add production client seed script for Railway database' --body ':*)",
+      "Bash(where gh:*)",
+      "Bash(winget list:*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" --version)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --title 'Add production client seed script for Railway database' --body ':*)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" auth status)"
     ]
   }
 }
