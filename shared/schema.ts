@@ -284,6 +284,15 @@ export const expenseNoteItems = pgTable("expense_note_items", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const expenseNoteEdits = pgTable("expense_note_edits", {
+  id: serial("id").primaryKey(),
+  expenseNoteId: integer("expense_note_id").notNull(),
+  userId: text("user_id").notNull(),
+  editedAt: timestamp("edited_at").defaultNow(),
+  fieldChanged: text("field_changed").notNull(),
+  reason: text("reason").notNull(),
+});
+
 // === RELATIONS ===
 
 export const clientsRelations = relations(clients, ({ one, many }) => ({
@@ -478,6 +487,7 @@ export const expenseNotesRelations = relations(expenseNotes, ({ one, many }) => 
     references: [serviceLogs.id],
   }),
   items: many(expenseNoteItems),
+  edits: many(expenseNoteEdits),
 }));
 
 export const expenseNoteItemsRelations = relations(expenseNoteItems, ({ one }) => ({
@@ -486,6 +496,15 @@ export const expenseNoteItemsRelations = relations(expenseNoteItems, ({ one }) =
     references: [expenseNotes.id],
   }),
 }));
+
+export const expenseNoteEditsRelations = relations(
+  expenseNoteEdits, ({ one }) => ({
+    expenseNote: one(expenseNotes, {
+      fields: [expenseNoteEdits.expenseNoteId],
+      references: [expenseNotes.id],
+    }),
+  })
+);
 
 // === BASE SCHEMAS ===
 
@@ -684,8 +703,11 @@ export type InsertExpenseNote = z.infer<typeof insertExpenseNoteSchema>;
 export type ExpenseNoteItem = typeof expenseNoteItems.$inferSelect;
 export type InsertExpenseNoteItem = z.infer<typeof insertExpenseNoteItemSchema>;
 
+export type ExpenseNoteEdit = typeof expenseNoteEdits.$inferSelect;
+
 export type ExpenseNoteWithDetails = ExpenseNote & {
   client: Client;
   items: ExpenseNoteItem[];
   serviceLog?: ServiceLog | null;
+  edits?: ExpenseNoteEdit[];
 };
