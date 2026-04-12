@@ -69,7 +69,7 @@ function _drawFooter(doc: jsPDF): void {
   doc.setFontSize(6.5);
   doc.setTextColor(...FOOTER_COLOR);
   doc.text(
-    "Caixa Geral de Depósitos: PT50 0035 0405 0001 2321 4004 3  ·  BIC: CGDIPTPL     |     Banco Montepio: PT50 0036 0275 9910 0034 6181 1  ·  BIC: MPIOPTPL     |     MBWay: +351 918 297 502",
+    "CGD: PT50 0035 0405 0001 2321 4004 3  ·  BIC: CGDIPTPL     |     Montepio: PT50 0036 0275 9910 0034 6181 1  ·  BIC: MPIOPTPL     |     MBWay: +351 918 297 502",
     MARGIN,
     BANKING_Y,
     { maxWidth: CONTENT_WIDTH }
@@ -86,9 +86,9 @@ function _drawFooter(doc: jsPDF): void {
   doc.setTextColor(...FOOTER_COLOR);
   doc.text(
     "Este documento não constitui fatura fiscal nem tem validade legal para efeitos tributários.",
-    MARGIN,
+    PAGE_WIDTH / 2,
     LEGAL_Y,
-    { maxWidth: CONTENT_WIDTH }
+    { align: "center", maxWidth: CONTENT_WIDTH }
   );
 
   // Contacto
