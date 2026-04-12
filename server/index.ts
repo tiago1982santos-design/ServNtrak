@@ -5,6 +5,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedProductionData } from "./seed-production";
 import { startVisitChecker } from "./visitChecker";
+import { pool } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -64,6 +65,17 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS expense_note_edits (
+      id SERIAL PRIMARY KEY,
+      expense_note_id INTEGER NOT NULL,
+      user_id TEXT NOT NULL,
+      edited_at TIMESTAMP DEFAULT NOW(),
+      field_changed TEXT NOT NULL,
+      reason TEXT NOT NULL
+    )
+  `);
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
