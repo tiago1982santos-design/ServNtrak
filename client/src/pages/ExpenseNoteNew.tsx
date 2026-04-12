@@ -366,8 +366,9 @@ function ItemDialog({
                 type="number"
                 min={0.1}
                 step={0.5}
-                value={draft.quantity}
+                value={draft.quantity === 0 ? "" : draft.quantity}
                 onChange={(e) => set("quantity", parseFloat(e.target.value) || 0)}
+                onFocus={(e) => e.target.select()}
                 className="rounded-xl"
               />
             </div>
@@ -381,8 +382,9 @@ function ItemDialog({
                   type="number"
                   min={0}
                   step={0.01}
-                  value={draft.unitPrice}
+                  value={draft.unitPrice === 0 ? "" : draft.unitPrice}
                   onChange={(e) => set("unitPrice", parseFloat(e.target.value) || 0)}
+                  onFocus={(e) => e.target.select()}
                   className="rounded-xl pl-7"
                 />
               </div>
