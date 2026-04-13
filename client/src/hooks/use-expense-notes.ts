@@ -150,3 +150,29 @@ export function useDeleteExpenseNote() {
     },
   });
 }
+
+export function useCreateExpenseNoteEdit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      fieldChanged,
+      reason,
+    }: {
+      id: number;
+      fieldChanged: string;
+      reason: string;
+    }) => {
+      const res = await fetch(`/api/expense-notes/${id}/edits`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fieldChanged, reason }),
+      });
+      if (!res.ok) throw new Error("Erro ao guardar histórico");
+      return res.json();
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ["expense-notes", id] });
+    },
+  });
+}
