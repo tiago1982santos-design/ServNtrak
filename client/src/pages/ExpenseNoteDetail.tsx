@@ -5,6 +5,7 @@ import {
   useUpdateExpenseNoteItems,
   useUpdateExpenseNote,
   useDeleteExpenseNote,
+  useCreateExpenseNoteEdit,
 } from "@/hooks/use-expense-notes";
 import { BottomNav } from "@/components/BottomNav";
 import { BackButton } from "@/components/BackButton";
@@ -95,6 +96,7 @@ export default function ExpenseNoteDetail() {
   const updateNoteItems = useUpdateExpenseNoteItems();
   const updateNote = useUpdateExpenseNote();
   const deleteNote = useDeleteExpenseNote();
+  const createEdit = useCreateExpenseNoteEdit();
 
   // ── Estado dos dialogs ────────────────────────────────────────────────────
   const [emitOpen, setEmitOpen] = useState(false);
@@ -149,6 +151,17 @@ export default function ExpenseNoteDetail() {
         expenseNoteId: noteId,
       })),
     } as any);
+    const editedCount = editingItems.filter(i => itemIsEdited(i)).length;
+    if (editedCount > 0) {
+      await createEdit.mutateAsync({
+        id: noteId,
+        fieldChanged: "items",
+        reason: editingItems
+          .filter(i => itemIsEdited(i))
+          .map(i => `${i.description}: ${i.editReason}`)
+          .join(" | "),
+      });
+    }
     setEditItemsOpen(false);
   };
 
@@ -315,6 +328,23 @@ export default function ExpenseNoteDetail() {
           </div>
         )}
 
+        {/* ── Histórico de edições ──────────────────────────────── */}
+        {note.edits && note.edits.length > 0 && (
+          <div className="bg-card border rounded-xl p-4 shadow-sm space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Histórico de alterações
+            </p>
+            {note.edits.map((edit) => (
+              <div key={edit.id} className="border-l-2 border-orange-300 pl-3 space-y-0.5">
+                <p className="text-xs text-muted-foreground">
+                  {format(new Date(edit.editedAt!), "d 'de' MMMM yyyy 'às' HH:mm", { locale: pt })}
+                </p>
+                <p className="text-xs text-foreground">{edit.reason}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── Acções — Rascunho ─────────────────────────────────── */}
         {isDraft && (
           <div className="space-y-3">
@@ -344,6 +374,13 @@ export default function ExpenseNoteDetail() {
         {/* ── Acções — Emitida ──────────────────────────────────── */}
         {!isDraft && (
           <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={openEditItems}
+            >
+              <Edit2 className="w-4 h-4" /> Editar Nota
+            </Button>
             <Button
               variant="outline"
               className="w-full gap-2"
