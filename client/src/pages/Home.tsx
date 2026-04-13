@@ -13,11 +13,9 @@ import {
   Droplets, Leaf, CheckCircle2, Camera,
   FileText, BarChart2, Loader2, CalendarClock, ShoppingBag, Users, ClipboardList,
   Locate, LocateOff, Clock, X, Check, Pencil,
-  Plus, Wallet, Navigation, AlertCircle, Map,
+  Plus, Navigation, AlertCircle, Map, UserPlus, CreditCard,
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
-import { CreateClientDialog } from "@/components/CreateClientDialog";
-import { QuickPhotoCaptureButton } from "@/components/QuickPhotoCaptureButton";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
@@ -683,9 +681,9 @@ export default function Home() {
           <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Ações Rápidas</h3>
           <div className="flex gap-4 overflow-x-auto pb-2 snap-x hide-scrollbar px-1">
             {[
-              { href: "/calendar", Icon: Plus, label: "Novo Serviço", bg: "bg-[#206F4C]/10", text: "text-[#206F4C]", border: "border-[#206F4C]/20" },
-              { href: "/gallery",  Icon: Camera, label: "Foto Rápida", bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200" },
-              { href: "/payments", Icon: Wallet, label: "Cobrar", bg: "bg-purple-50", text: "text-purple-600", border: "border-purple-200" },
+              { href: "/calendar", Icon: Plus,     label: "Novo Serviço", bg: "bg-[#206F4C]/10", text: "text-[#206F4C]",  border: "border-[#206F4C]/20" },
+              { href: "/clients",  Icon: UserPlus, label: "Novo Cliente", bg: "bg-blue-50",      text: "text-blue-600",   border: "border-blue-200" },
+              { href: "/gallery",  Icon: Camera,   label: "Foto Rápida",  bg: "bg-blue-50",      text: "text-blue-600",   border: "border-blue-200" },
               { href: "/map",      Icon: Map, label: "Mapa", bg: "bg-orange-50", text: "text-orange-500", border: "border-orange-200" },
               { href: "/reports",  Icon: BarChart2, label: "Relatórios", bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" },
             ].map((action, i) => (
@@ -708,7 +706,8 @@ export default function Home() {
             { href: "/pending-tasks", Icon: ClipboardList, label: "Tarefas Pendentes", desc: "Ver todas as tarefas por fazer", iconBg: "bg-amber-100/70 text-amber-700" },
             { href: "/employees",    Icon: Users,          label: "Funcionários",       desc: "Gerir equipa e salários",         iconBg: "bg-orange-100/70 text-orange-700" },
             { href: "/purchases",    Icon: ShoppingBag,    label: "Compras e Despesas", desc: "Gerir materiais e gastos",                   iconBg: "bg-green-100/70 text-green-700" },
-            { href: "/expense-notes", Icon: FileText,       label: "Notas de Despesa",   desc: "Documentos de serviços prestados",           iconBg: "bg-teal-100/70 text-teal-700" },
+            { href: "/expense-notes", Icon: FileText,   label: "Notas de Despesa",   desc: "Documentos de serviços prestados",          iconBg: "bg-teal-100/70 text-teal-700" },
+            { href: "/payments",      Icon: CreditCard, label: "Mensalidades",        desc: "Gerir pagamentos mensais dos clientes",     iconBg: "bg-purple-100/70 text-purple-700" },
           ].map((action) => (
             <Link key={action.href} href={action.href} className="block" data-testid={`link-more-${action.href.slice(1)}`}>
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-4 hover:bg-slate-50 active:scale-[0.99] transition-all">
@@ -754,12 +753,6 @@ export default function Home() {
         </button>
 
       </main>
-
-      {/* FABs */}
-      <div className="fixed bottom-24 right-5 z-40 flex flex-col gap-3">
-        <QuickPhotoCaptureButton />
-        <CreateClientDialog />
-      </div>
 
       <BottomNav />
 
