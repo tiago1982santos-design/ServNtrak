@@ -13,7 +13,7 @@ import {
   Droplets, Leaf, CheckCircle2, Camera,
   FileText, BarChart2, Loader2, CalendarClock, ShoppingBag, Users, ClipboardList,
   Locate, LocateOff, Clock, X, Check, Pencil,
-  Plus, Navigation, AlertCircle, Map, UserPlus, CreditCard,
+  Plus, Navigation, AlertCircle, Map, UserPlus, CreditCard, TrendingUp, Download, Bell,
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { cn } from "@/lib/utils";
@@ -708,6 +708,9 @@ export default function Home() {
             { href: "/purchases",    Icon: ShoppingBag,    label: "Compras e Despesas", desc: "Gerir materiais e gastos",                   iconBg: "bg-green-100/70 text-green-700" },
             { href: "/expense-notes", Icon: FileText,   label: "Notas de Despesa",   desc: "Documentos de serviços prestados",          iconBg: "bg-teal-100/70 text-teal-700" },
             { href: "/payments",      Icon: CreditCard, label: "Mensalidades",        desc: "Gerir pagamentos mensais dos clientes",     iconBg: "bg-purple-100/70 text-purple-700" },
+            { href: "/finances",      Icon: TrendingUp, label: "Financeiro",           desc: "Distribuição de rendimento mensal",          iconBg: "bg-emerald-100/70 text-emerald-700" },
+            { href: "/exports",       Icon: Download,   label: "Exportações",          desc: "Exportar dados em PDF e CSV",               iconBg: "bg-slate-100/70 text-slate-600" },
+            { href: "/reminders",     Icon: Bell,       label: "Lembretes",            desc: "Manutenções e alertas periódicos",           iconBg: "bg-yellow-100/70 text-yellow-700" },
           ].map((action) => (
             <Link key={action.href} href={action.href} className="block" data-testid={`link-more-${action.href.slice(1)}`}>
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-4 hover:bg-slate-50 active:scale-[0.99] transition-all">
