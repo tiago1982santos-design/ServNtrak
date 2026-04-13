@@ -76,6 +76,33 @@ app.use((req, res, next) => {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS quotes (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      quote_number TEXT NOT NULL UNIQUE,
+      client_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      valid_until TIMESTAMP,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS quote_items (
+      id SERIAL PRIMARY KEY,
+      quote_id INTEGER NOT NULL REFERENCES quotes(id),
+      description TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'service',
+      quantity DOUBLE PRECISION NOT NULL DEFAULT 1,
+      unit_price DOUBLE PRECISION NOT NULL DEFAULT 0,
+      total DOUBLE PRECISION NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

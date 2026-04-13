@@ -6,6 +6,7 @@ import {
   serviceVisits, serviceVisitServices,
   financialConfig, monthlyDistributions, employees, pendingTasks, suggestedWorks,
   expenseNotes, expenseNoteItems, expenseNoteEdits,
+  quotes, quoteItems,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
@@ -30,6 +31,8 @@ import {
   type AppointmentPreview,
   type InsertExpenseNote, type ExpenseNote,
   type InsertExpenseNoteItem, type ExpenseNoteItem, type ExpenseNoteWithDetails,
+  type InsertQuote, type Quote,
+  type InsertQuoteItem, type QuoteItem, type QuoteWithDetails,
 } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
@@ -154,6 +157,15 @@ export interface IStorage {
   deleteExpenseNote(id: number, userId: string): Promise<void>;
   generateNoteNumber(userId: string): Promise<string>;
   createExpenseNoteEdit(expenseNoteId: number, userId: string, fieldChanged: string, reason: string): Promise<void>;
+
+  // Quotes
+  getQuotes(userId: string, clientId?: number): Promise<QuoteWithDetails[]>;
+  getQuote(id: number, userId: string): Promise<QuoteWithDetails | undefined>;
+  createQuote(quote: InsertQuote & { userId: string }, items: Omit<InsertQuoteItem, 'quoteId'>[]): Promise<QuoteWithDetails>;
+  updateQuote(id: number, userId: string, updates: Partial<InsertQuote>): Promise<Quote | undefined>;
+  updateQuoteItems(quoteId: number, userId: string, items: Omit<InsertQuoteItem, 'quoteId'>[]): Promise<QuoteItem[]>;
+  deleteQuote(id: number, userId: string): Promise<void>;
+  generateQuoteNumber(userId: string): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1404,6 +1416,164 @@ export class DatabaseStorage implements IStorage {
       fieldChanged,
       reason,
     });
+  }
+
+  // ── QUOTES ────────────────────────────────────────────────────
+
+  async generateQuoteNumber(userId: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const existing = await db
+      .select()
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.userId, userId),
+          sql`EXTRACT(YEAR FROM ${quotes.createdAt}) = ${year}`
+        )
+      );
+    const seq = String(existing.length + 1).padStart(3, "0");
+    return `ORC-${year}-${seq}`;
+  }
+
+  async getQuotes(userId: string, clientId?: number): Promise<QuoteWithDetails[]> {
+    const conditions = [eq(quotes.userId, userId)];
+    if (clientId) conditions.push(eq(quotes.clientId, clientId));
+
+    const rows = await db
+      .select()
+      .from(quotes)
+      .where(and(...conditions))
+      .orderBy(desc(quotes.createdAt));
+
+    const result: QuoteWithDetails[] = [];
+    for (const quote of rows) {
+      const [client] = await db
+        .select()
+        .from(clients)
+        .where(eq(clients.id, quote.clientId));
+      if (!client) continue;
+
+      const items = await db
+        .select()
+        .from(quoteItems)
+        .where(eq(quoteItems.quoteId, quote.id));
+
+      result.push({ ...quote, client, items });
+    }
+    return result;
+  }
+
+  async getQuote(id: number, userId: string): Promise<QuoteWithDetails | undefined> {
+    const [quote] = await db
+      .select()
+      .from(quotes)
+      .where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
+    if (!quote) return undefined;
+
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, quote.clientId));
+    if (!client) return undefined;
+
+    const items = await db
+      .select()
+      .from(quoteItems)
+      .where(eq(quoteItems.quoteId, quote.id));
+
+    return { ...quote, client, items };
+  }
+
+  async createQuote(
+    quote: InsertQuote & { userId: string },
+    items: Omit<InsertQuoteItem, "quoteId">[]
+  ): Promise<QuoteWithDetails> {
+    const quoteNumber = quote.quoteNumber ?? (await this.generateQuoteNumber(quote.userId));
+
+    const [newQuote] = await db
+      .insert(quotes)
+      .values({ ...quote, quoteNumber })
+      .returning();
+
+    const createdItems: QuoteItem[] = [];
+    for (const item of items) {
+      const total = Math.round(item.quantity * item.unitPrice * 100) / 100;
+      const [newItem] = await db
+        .insert(quoteItems)
+        .values({ ...item, quoteId: newQuote.id, total })
+        .returning();
+      createdItems.push(newItem);
+    }
+
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, newQuote.clientId));
+
+    return { ...newQuote, client: client!, items: createdItems };
+  }
+
+  async updateQuote(
+    id: number,
+    userId: string,
+    updates: Partial<InsertQuote>
+  ): Promise<Quote | undefined> {
+    const [existing] = await db
+      .select()
+      .from(quotes)
+      .where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
+    if (!existing) return undefined;
+
+    if (updates.validUntil && typeof updates.validUntil === "string") {
+      updates.validUntil = new Date(updates.validUntil);
+    }
+
+    const [updated] = await db
+      .update(quotes)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(quotes.id, id), eq(quotes.userId, userId)))
+      .returning();
+    return updated;
+  }
+
+  async updateQuoteItems(
+    quoteId: number,
+    userId: string,
+    items: Omit<InsertQuoteItem, "quoteId">[]
+  ): Promise<QuoteItem[]> {
+    const [quote] = await db
+      .select()
+      .from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.userId, userId)));
+    if (!quote) throw new Error("Orçamento não encontrado.");
+
+    await db
+      .delete(quoteItems)
+      .where(eq(quoteItems.quoteId, quoteId));
+
+    const createdItems: QuoteItem[] = [];
+    for (const item of items) {
+      const total = Math.round(item.quantity * item.unitPrice * 100) / 100;
+      const [newItem] = await db
+        .insert(quoteItems)
+        .values({ ...item, quoteId, total })
+        .returning();
+      createdItems.push(newItem);
+    }
+    return createdItems;
+  }
+
+  async deleteQuote(id: number, userId: string): Promise<void> {
+    const row = await db
+      .select()
+      .from(quotes)
+      .where(and(eq(quotes.id, id), eq(quotes.userId, userId)))
+      .limit(1);
+
+    if (row.length === 0) throw new Error("Orçamento não encontrado ou sem permissão");
+
+    await db.delete(quoteItems).where(eq(quoteItems.quoteId, id));
+    await db.delete(quotes).where(and(eq(quotes.id, id), eq(quotes.userId, userId)));
   }
 }
 

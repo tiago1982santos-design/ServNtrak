@@ -707,6 +707,7 @@ export default function Home() {
             { href: "/employees",    Icon: Users,          label: "Funcionários",       desc: "Gerir equipa e salários",         iconBg: "bg-orange-100/70 text-orange-700" },
             { href: "/purchases",    Icon: ShoppingBag,    label: "Compras e Despesas", desc: "Gerir materiais e gastos",                   iconBg: "bg-green-100/70 text-green-700" },
             { href: "/expense-notes", Icon: FileText,   label: "Notas de Despesa",   desc: "Documentos de serviços prestados",          iconBg: "bg-teal-100/70 text-teal-700" },
+            { href: "/quotes",        Icon: ClipboardList, label: "Orçamentos",       desc: "Criar e enviar propostas aos clientes",     iconBg: "bg-indigo-100/70 text-indigo-700" },
             { href: "/payments",      Icon: CreditCard, label: "Mensalidades",        desc: "Gerir pagamentos mensais dos clientes",     iconBg: "bg-purple-100/70 text-purple-700" },
             { href: "/finances",      Icon: TrendingUp, label: "Financeiro",           desc: "Distribuição de rendimento mensal",          iconBg: "bg-emerald-100/70 text-emerald-700" },
             { href: "/exports",       Icon: Download,   label: "Exportações",          desc: "Exportar dados em PDF e CSV",               iconBg: "bg-slate-100/70 text-slate-600" },

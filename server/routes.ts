@@ -1497,5 +1497,89 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
     }
   });
 
+  // ── QUOTES (ORÇAMENTOS) ─────────────────────────────────────
+
+  app.get("/api/quotes", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
+      const result = await storage.getQuotes(req.user!.id, clientId);
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao obter orçamentos:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.get("/api/quotes/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const quote = await storage.getQuote(parseInt(req.params.id), req.user!.id);
+      if (!quote) return res.status(404).json({ error: "Orçamento não encontrado" });
+      res.json(quote);
+    } catch (error) {
+      console.error("Erro ao obter orçamento:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.post("/api/quotes", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const { items = [], ...quoteData } = req.body;
+      const quote = await storage.createQuote(
+        { ...quoteData, userId: req.user!.id },
+        items
+      );
+      res.status(201).json(quote);
+    } catch (error) {
+      console.error("Erro ao criar orçamento:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.patch("/api/quotes/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const updated = await storage.updateQuote(
+        parseInt(req.params.id),
+        req.user!.id,
+        req.body
+      );
+      if (!updated) return res.status(404).json({ error: "Orçamento não encontrado" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Erro ao actualizar orçamento:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.put("/api/quotes/:id/items", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const { items = [] } = req.body;
+      const updatedItems = await storage.updateQuoteItems(
+        parseInt(req.params.id),
+        req.user!.id,
+        items
+      );
+      res.json(updatedItems);
+    } catch (error) {
+      console.error("Erro ao actualizar itens do orçamento:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
+  app.delete("/api/quotes/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Não autenticado" });
+    try {
+      await storage.deleteQuote(parseInt(req.params.id), req.user!.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao apagar orçamento:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
   return httpServer;
 }
