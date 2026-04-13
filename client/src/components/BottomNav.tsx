@@ -1,9 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { Home, Calendar, Users, User, LayoutGrid } from "lucide-react";
+import { Home, Calendar, Users, User, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MORE_ROUTES = [
-  "/purchases", "/finances", "/reports", "/exports", "/billing",
+  "/finances", "/reports", "/exports", "/billing",
   "/payments", "/gallery", "/reminders", "/map", "/employees", "/pending-tasks",
   "/expense-notes",
 ];
@@ -12,11 +12,11 @@ export function BottomNav() {
   const [location] = useLocation();
 
   const navItems = [
-    { href: "/",         icon: Home,       label: "Início"   },
-    { href: "/clients",  icon: Users,      label: "Clientes" },
-    { href: "/calendar", icon: Calendar,   label: "Agenda"   },
-    { href: "/purchases",icon: LayoutGrid, label: "Mais"     },
-    { href: "/profile",  icon: User,       label: "Perfil"   },
+    { href: "/",        icon: Home,     label: "Início"    },
+    { href: "/clients", icon: Users,    label: "Clientes"  },
+    { href: "/calendar",icon: Calendar, label: "Agenda"    },
+    { href: "/reports", icon: BarChart2,label: "Relatórios"},
+    { href: "/profile", icon: User,     label: "Perfil"    },
   ];
 
   return (
@@ -28,7 +28,7 @@ export function BottomNav() {
         {navItems.map((item) => {
           const isActive =
             location === item.href ||
-            (item.href === "/purchases" && MORE_ROUTES.includes(location));
+            (item.href === "/reports" && MORE_ROUTES.includes(location));
 
           return (
             <Link
