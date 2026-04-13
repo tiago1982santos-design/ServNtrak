@@ -1367,9 +1367,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteExpenseNote(id: number, userId: string): Promise<void> {
+    // Verificar ownership antes de apagar
+    const note = await db
+      .select()
+      .from(expenseNotes)
+      .where(and(eq(expenseNotes.id, id), eq(expenseNotes.userId, userId)))
+      .limit(1);
+
+    if (note.length === 0) {
+      throw new Error("Nota não encontrada ou sem permissão");
+    }
+
+    // Apagar na ordem correcta para evitar foreign key constraint
+    await db
+      .delete(expenseNoteEdits)
+      .where(eq(expenseNoteEdits.expenseNoteId, id));
+
     await db
       .delete(expenseNoteItems)
       .where(eq(expenseNoteItems.expenseNoteId, id));
+
     await db
       .delete(expenseNotes)
       .where(and(eq(expenseNotes.id, id), eq(expenseNotes.userId, userId)));
