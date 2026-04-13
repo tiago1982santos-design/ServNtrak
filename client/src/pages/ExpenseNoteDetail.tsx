@@ -103,6 +103,8 @@ export default function ExpenseNoteDetail() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editItemsOpen, setEditItemsOpen] = useState(false);
   const [editingItems, setEditingItems] = useState<EditableItem[]>([]);
+  const [deleteIssuedOpen, setDeleteIssuedOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   // ── Abrir dialog de edição de items ───────────────────────────────────────
   const openEditItems = () => {
@@ -414,6 +416,16 @@ export default function ExpenseNoteDetail() {
             >
               <Share2 className="w-4 h-4" /> Partilhar PDF
             </Button>
+            <Button
+              variant="destructive"
+              className="w-full gap-2"
+              onClick={() => {
+                setDeleteConfirmText("");
+                setDeleteIssuedOpen(true);
+              }}
+            >
+              <Trash2 className="w-4 h-4" /> Apagar Nota
+            </Button>
           </div>
         )}
       </div>
@@ -455,6 +467,63 @@ export default function ExpenseNoteDetail() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 "Emitir"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Confirmar Apagar Nota Emitida ───────────────── */}
+      <Dialog open={deleteIssuedOpen} onOpenChange={setDeleteIssuedOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">
+              Apagar nota emitida?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+              <p className="text-sm font-medium text-destructive">
+                Atenção — acção irreversível
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                A nota {note.noteNumber} e todo o seu histórico
+                serão eliminados permanentemente.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                Escreve <span className="font-mono font-bold">CONFIRMAR</span> para continuar
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="CONFIRMAR"
+                className="rounded-xl font-mono"
+                autoCapitalize="characters"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteIssuedOpen(false)}
+              disabled={deleteNote.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirmText !== "CONFIRMAR" || deleteNote.isPending}
+              onClick={async () => {
+                await deleteNote.mutateAsync(noteId);
+                navigate("/expense-notes");
+              }}
+            >
+              {deleteNote.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Apagar definitivamente"
               )}
             </Button>
           </DialogFooter>
