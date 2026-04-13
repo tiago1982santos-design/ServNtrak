@@ -55,7 +55,7 @@ export default function AssistantChat() {
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-green-500 hover:bg-green-400 shadow-lg flex items-center justify-center z-50 transition-transform hover:scale-110"
+        className="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-green-500 hover:bg-green-400 shadow-lg flex items-center justify-center z-[60] transition-transform hover:scale-110"
         data-testid="button-assistant-toggle"
       >
         <span className="text-white text-2xl">{isOpen ? "✕" : "🌿"}</span>
