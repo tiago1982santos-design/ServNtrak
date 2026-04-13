@@ -18,11 +18,51 @@ export default function AssistantChat() {
   const [history, setHistory] = useState<{role: string, content: string}[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Drag state ─────────────────────────────────────────────
+  const [pos, setPos] = useState({ x: window.innerWidth - 80, y: window.innerHeight - 160 });
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const didDrag = useRef(false);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    dragging.current = true;
+    didDrag.current = false;
+    dragOffset.current = {
+      x: e.clientX - pos.x,
+      y: e.clientY - pos.y,
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    didDrag.current = true;
+    const BUTTON_SIZE = 56;
+    const newX = Math.min(
+      Math.max(0, e.clientX - dragOffset.current.x),
+      window.innerWidth - BUTTON_SIZE
+    );
+    const newY = Math.min(
+      Math.max(0, e.clientY - dragOffset.current.y),
+      window.innerHeight - BUTTON_SIZE
+    );
+    setPos({ x: newX, y: newY });
+  };
+
+  const onPointerUp = () => {
+    dragging.current = false;
+    // Só abre/fecha se não arrastou
+    if (!didDrag.current) {
+      setIsOpen(prev => !prev);
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const getTime = () => new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+  const getTime = () =>
+    new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
 
   const sendMessage = async (text?: string) => {
     const msg = text || input.trim();
@@ -46,23 +86,43 @@ export default function AssistantChat() {
       setMessages(prev => [...prev, { role: "bot", text: reply, time: getTime() }]);
       setHistory([...newHistory, { role: "assistant", content: reply }]);
     } catch {
-      setMessages(prev => [...prev, { role: "bot", text: "⚠️ Erro ao contactar o assistente.", time: getTime() }]);
+      setMessages(prev => [
+        ...prev,
+        { role: "bot", text: "⚠️ Erro ao contactar o assistente.", time: getTime() }
+      ]);
     }
     setIsLoading(false);
   };
 
+  // Posição do chat — abre por cima ou por baixo conforme espaço disponível
+  const chatTop = pos.y > window.innerHeight / 2
+    ? pos.y - 510
+    : pos.y + 64;
+  const chatLeft = Math.min(
+    Math.max(0, pos.x - 240),
+    window.innerWidth - 320
+  );
+
   return (
     <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-green-500 hover:bg-green-400 shadow-lg flex items-center justify-center z-[60] transition-transform hover:scale-110"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        style={{ left: pos.x, top: pos.y, touchAction: "none" }}
+        className="fixed w-14 h-14 rounded-full bg-green-500 hover:bg-green-400 shadow-lg flex items-center justify-center z-[60] transition-shadow cursor-grab active:cursor-grabbing select-none"
         data-testid="button-assistant-toggle"
       >
-        <span className="text-white text-2xl">{isOpen ? "✕" : "🌿"}</span>
+        <span className="text-white text-2xl pointer-events-none">
+          {isOpen ? "✕" : "🌿"}
+        </span>
       </button>
 
       {isOpen && (
-        <div className="fixed bottom-24 right-6 w-80 h-[500px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 z-50">
+        <div
+          style={{ left: chatLeft, top: chatTop }}
+          className="fixed w-80 h-[500px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-gray-700 z-50"
+        >
           <div className="p-4 bg-green-600 text-white flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-green-400 flex items-center justify-center text-lg">🌿</div>
             <div>
@@ -87,7 +147,8 @@ export default function AssistantChat() {
             {isLoading && (
               <div className="flex items-center gap-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-2xl w-fit">
                 {[0,1,2].map(i => (
-                  <span key={i} className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: `${i*0.15}s`}} />
+                  <span key={i} className="w-2 h-2 bg-green-500 rounded-full animate-bounce"
+                    style={{ animationDelay: `${i * 0.15}s` }} />
                 ))}
               </div>
             )}
