@@ -5,7 +5,7 @@ import {
   purchaseCategories, stores, purchases, clientPayments,
   serviceVisits, serviceVisitServices,
   financialConfig, monthlyDistributions, employees, pendingTasks, suggestedWorks,
-  expenseNotes, expenseNoteItems,
+  expenseNotes, expenseNoteItems, expenseNoteEdits,
   type InsertClient, type Client,
   type InsertAppointment, type Appointment,
   type InsertServiceLog, type ServiceLog,
@@ -153,6 +153,7 @@ export interface IStorage {
   updateExpenseNoteItems(noteId: number, userId: string, items: Omit<InsertExpenseNoteItem, 'expenseNoteId'>[]): Promise<ExpenseNoteItem[]>;
   deleteExpenseNote(id: number, userId: string): Promise<void>;
   generateNoteNumber(userId: string): Promise<string>;
+  createExpenseNoteEdit(expenseNoteId: number, userId: string, fieldChanged: string, reason: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1264,7 +1265,13 @@ export class DatabaseStorage implements IStorage {
       serviceLog = log ?? null;
     }
 
-    return { ...note, client, items, serviceLog };
+    const edits = await db
+      .select()
+      .from(expenseNoteEdits)
+      .where(eq(expenseNoteEdits.expenseNoteId, note.id))
+      .orderBy(desc(expenseNoteEdits.editedAt));
+
+    return { ...note, client, items, serviceLog, edits };
   }
 
   async createExpenseNote(
@@ -1366,6 +1373,20 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(expenseNotes)
       .where(and(eq(expenseNotes.id, id), eq(expenseNotes.userId, userId)));
+  }
+
+  async createExpenseNoteEdit(
+    expenseNoteId: number,
+    userId: string,
+    fieldChanged: string,
+    reason: string
+  ): Promise<void> {
+    await db.insert(expenseNoteEdits).values({
+      expenseNoteId,
+      userId,
+      fieldChanged,
+      reason,
+    });
   }
 }
 

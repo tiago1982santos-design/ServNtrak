@@ -1392,6 +1392,29 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
     }
   });
 
+  app.post("/api/expense-notes/:id/edits", async (req, res) => {
+    if (!req.isAuthenticated())
+      return res.status(401).json({ error: "Não autenticado" });
+    try {
+      const { fieldChanged, reason } = req.body;
+      if (!fieldChanged || !reason?.trim()) {
+        return res.status(400).json({
+          error: "fieldChanged e reason são obrigatórios",
+        });
+      }
+      await storage.createExpenseNoteEdit(
+        parseInt(req.params.id),
+        req.user!.id,
+        fieldChanged,
+        reason
+      );
+      res.status(201).json({ success: true });
+    } catch (error) {
+      console.error("Erro ao criar edit:", error);
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  });
+
   app.delete("/api/expense-notes/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Não autenticado" });
     try {
