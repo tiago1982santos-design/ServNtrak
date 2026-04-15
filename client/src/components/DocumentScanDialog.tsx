@@ -46,6 +46,10 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
+  const [showCreateStore, setShowCreateStore] = useState(false);
+  const [newStoreName, setNewStoreName] = useState("");
+  const [newStoreNif, setNewStoreNif] = useState("");
+  const [newStoreAddress, setNewStoreAddress] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -94,6 +98,10 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
         }
         
         setStep("review");
+        // Pré-preencher campos para criar loja se não encontrou correspondência
+        setNewStoreName(result.data.storeName || "");
+        setNewStoreNif(result.data.storeNif || "");
+        setNewStoreAddress(result.data.storeAddress || "");
       } else {
         toast({
           title: "Erro na extração",
@@ -129,6 +137,37 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
         typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/purchases')
+      });
+    },
+  });
+
+  const createStoreMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      taxId?: string;
+      address?: string;
+    }) => {
+      const response = await apiRequest("POST", "/api/stores", data);
+      return response.json();
+    },
+    onSuccess: (newStore) => {
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === 'string' &&
+          query.queryKey[0].includes('stores'),
+      });
+      setSelectedStoreId(newStore.id);
+      setShowCreateStore(false);
+      toast({
+        title: "Loja criada",
+        description: `${newStore.name} adicionada com sucesso`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao criar loja",
+        description: "Não foi possível criar a loja",
+        variant: "destructive",
       });
     },
   });
@@ -386,21 +425,84 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
 
             <div className="space-y-2">
               <Label>Loja</Label>
-              <Select
-                value={selectedStoreId?.toString() || ""}
-                onValueChange={(v) => setSelectedStoreId(Number(v))}
-              >
-                <SelectTrigger data-testid="select-scan-store">
-                  <SelectValue placeholder="Selecione uma loja" />
-                </SelectTrigger>
-                <SelectContent>
-                  {stores.map((store) => (
-                    <SelectItem key={store.id} value={store.id.toString()}>
-                      {store.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {!showCreateStore ? (
+                <div className="space-y-2">
+                  <Select
+                    value={selectedStoreId?.toString() || ""}
+                    onValueChange={(v) => setSelectedStoreId(Number(v))}
+                  >
+                    <SelectTrigger data-testid="select-scan-store">
+                      <SelectValue placeholder="Selecione uma loja" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stores.map((store) => (
+                        <SelectItem key={store.id} value={store.id.toString()}>
+                          {store.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => setShowCreateStore(true)}
+                  >
+                    + Criar nova loja
+                    {newStoreName && ` "${newStoreName}"`}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 p-3 border rounded-xl bg-muted/30">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Nova loja
+                  </p>
+                  <Input
+                    placeholder="Nome da loja *"
+                    value={newStoreName}
+                    onChange={(e) => setNewStoreName(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <Input
+                    placeholder="NIF (opcional)"
+                    value={newStoreNif}
+                    onChange={(e) => setNewStoreNif(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <Input
+                    placeholder="Morada (opcional)"
+                    value={newStoreAddress}
+                    onChange={(e) => setNewStoreAddress(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => setShowCreateStore(false)}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 text-xs"
+                      disabled={!newStoreName.trim() || createStoreMutation.isPending}
+                      onClick={() => createStoreMutation.mutateAsync({
+                        name: newStoreName.trim(),
+                        taxId: newStoreNif.trim() || undefined,
+                        address: newStoreAddress.trim() || undefined,
+                      })}
+                    >
+                      {createStoreMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        "Criar loja"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
