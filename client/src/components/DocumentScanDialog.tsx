@@ -95,6 +95,11 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
           if (matchedStore) {
             setSelectedStoreId(matchedStore.id);
           }
+          // Se OCR encontrou nome mas não há loja correspondente,
+          // abrir automaticamente o formulário de criar loja
+          if (!matchedStore && result.data.storeName) {
+            setShowCreateStore(true);
+          }
         }
         
         setStep("review");
@@ -448,8 +453,10 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
                     className="w-full text-xs"
                     onClick={() => setShowCreateStore(true)}
                   >
-                    + Criar nova loja
-                    {newStoreName && ` "${newStoreName}"`}
+                    {newStoreName
+                      ? `+ Loja não encontrada — Criar "${newStoreName}"`
+                      : "+ Criar nova loja"
+                    }
                   </Button>
                 </div>
               ) : (
