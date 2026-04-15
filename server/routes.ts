@@ -9,18 +9,11 @@ import { serviceVisits, appointments } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { saveSubscription, removeSubscription, sendPushToUser, getVapidPublicKey } from "./pushService";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
-let _openai: OpenAI | null = null;
-function getOpenAI(): OpenAI {
-  if (!_openai) {
-    _openai = new OpenAI({
-      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-    });
-  }
-  return _openai;
-}
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -666,13 +659,36 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Imagem é obrigatória" });
       }
 
-      // Call OpenAI Vision to extract text and structured data
-      const response = await getOpenAI().chat.completions.create({
-        model: "gpt-4o",
+      // Extract base64 data and media type from data URL if present
+      let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
+      let base64Data = imageBase64;
+      if (imageBase64.startsWith("data:")) {
+        const match = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          mediaType = match[1] as typeof mediaType;
+          base64Data = match[2];
+        }
+      }
+
+      // Call Anthropic Claude to extract text and structured data
+      const response = await anthropic.messages.create({
+        model: "claude-opus-4-5",
+        max_tokens: 2000,
         messages: [
           {
-            role: "system",
-            content: `Você é um assistente especializado em extrair informações de documentos de compra portugueses (faturas, recibos, talões).
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType,
+                  data: base64Data,
+                },
+              },
+              {
+                type: "text",
+                text: `Você é um assistente especializado em extrair informações de documentos de compra portugueses (faturas, recibos, talões).
 Analise a imagem e extraia as seguintes informações em formato JSON:
 - storeName: nome da loja/fornecedor
 - storeNif: NIF/Contribuinte da loja (9 dígitos)
@@ -685,30 +701,14 @@ Analise a imagem e extraia as seguintes informações em formato JSON:
 
 Responda APENAS com o JSON válido, sem markdown ou explicações.
 Se não conseguir identificar um campo, omita-o ou use null.
-Valores monetários devem ser números (ex: 12.50, não "12,50€").`
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: {
-                  url: imageBase64.startsWith("data:") 
-                    ? imageBase64 
-                    : `data:image/jpeg;base64,${imageBase64}`,
-                },
-              },
-              {
-                type: "text",
-                text: "Por favor, extrai as informações deste documento de compra.",
+Valores monetários devem ser números (ex: 12.50, não "12,50€").`,
               },
             ],
           },
         ],
-        max_tokens: 2000,
       });
 
-      const content = response.choices[0]?.message?.content || "{}";
+      const content = (response.content[0] as { type: string; text: string })?.text || "{}";
       
       // Try to parse the JSON response
       let extractedData;
@@ -1195,11 +1195,6 @@ Valores monetários devem ser números (ex: 12.50, não "12,50€").`
   - Agendamentos: ${JSON.stringify(appointments.map(a => ({ id: a.id, cliente: a.clientId, data: a.scheduledDate, servico: a.serviceType })))}
 
   Responde sempre em português, de forma direta e prática. Ajuda o Tiago a gerir melhor o negócio.`;
-
-      const Anthropic = (await import("@anthropic-ai/sdk")).default;
-      const anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
 
       const response = await anthropic.messages.create({
         model: "claude-sonnet-4-20250514",
