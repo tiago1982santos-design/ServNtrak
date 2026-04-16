@@ -265,11 +265,20 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
       });
 
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Save error:", error);
+
+      // Tentar extrair mensagem de erro da resposta da API
+      let errorMessage = "Ocorreu um erro ao guardar as compras";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Erro ao guardar",
-        description: "Ocorreu um erro ao guardar as compras",
+        description: errorMessage,
         variant: "destructive",
+        duration: 8000,
       });
     }
   };
