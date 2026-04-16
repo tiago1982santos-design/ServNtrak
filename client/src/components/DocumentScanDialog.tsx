@@ -164,13 +164,12 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
       return response.json();
     },
     onSuccess: (newStore) => {
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          typeof query.queryKey[0] === 'string' &&
-          query.queryKey[0].includes('stores'),
-      });
+      queryClient.invalidateQueries({ queryKey: ['/api/stores'] });
       setSelectedStoreId(newStore.id);
       setShowCreateStore(false);
+      setNewStoreName("");
+      setNewStoreNif("");
+      setNewStoreAddress("");
       toast({
         title: "Loja criada",
         description: `${newStore.name} adicionada com sucesso`,
