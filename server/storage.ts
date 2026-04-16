@@ -96,6 +96,7 @@ export interface IStorage {
   createPurchase(purchase: InsertPurchase & { userId: string }): Promise<Purchase>;
   updatePurchase(id: number, userId: string, updates: Partial<InsertPurchase>): Promise<Purchase | undefined>;
   deletePurchase(id: number, userId: string): Promise<void>;
+  checkInvoiceExists(invoiceNumber: string, userId: string): Promise<boolean>;
 
   // Client Payments
   getClientPayments(userId: string, year?: number, month?: number): Promise<ClientPaymentWithClient[]>;
@@ -710,6 +711,20 @@ export class DatabaseStorage implements IStorage {
       category: r.category,
       client: r.client,
     }));
+  }
+
+  async checkInvoiceExists(invoiceNumber: string, userId: string): Promise<boolean> {
+    const [existing] = await db
+      .select({ id: purchases.id })
+      .from(purchases)
+      .where(
+        and(
+          eq(purchases.invoiceNumber, invoiceNumber),
+          eq(purchases.userId, userId)
+        )
+      )
+      .limit(1);
+    return !!existing;
   }
 
   async createPurchase(purchase: InsertPurchase & { userId: string }): Promise<Purchase> {

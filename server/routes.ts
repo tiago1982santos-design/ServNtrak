@@ -533,6 +533,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Loja inválida" });
       }
 
+      if (input.invoiceNumber) {
+        const exists = await storage.checkInvoiceExists(input.invoiceNumber, userId);
+        if (exists) {
+          return res.status(409).json({
+            message: `A fatura ${input.invoiceNumber} já foi registada anteriormente.`,
+            code: "DUPLICATE_INVOICE"
+          });
+        }
+      }
+
       const purchase = await storage.createPurchase({ ...input, userId });
       res.status(201).json(purchase);
     } catch (err) {
@@ -649,6 +659,7 @@ export async function registerRoutes(
     storeNif: z.string().optional(),
     storeAddress: z.string().optional(),
     purchaseDate: z.string().optional(),
+    invoiceNumber: z.string().optional().nullable(),
     items: z.array(z.object({
       productName: z.string(),
       quantity: z.number().default(1),
@@ -705,6 +716,7 @@ Analise a imagem e extraia as seguintes informações em formato JSON:
 - storeNif: NIF/Contribuinte da loja (9 dígitos)
 - storeAddress: morada da loja
 - purchaseDate: data da compra (formato YYYY-MM-DD)
+- invoiceNumber: número da fatura ou recibo (ex: FR 2026/1234, Recibo nº 456, FT 001/00123)
 - items: lista de produtos com:
   - productName: nome do produto
   - quantity: quantidade
