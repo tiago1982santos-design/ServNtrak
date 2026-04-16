@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Camera, Check, X, Upload, Trash2, ArrowLeft, FileText } from "lucide-react";
+import { Loader2, Camera, Check, X, Upload, Trash2, ArrowLeft, FileText, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { PurchaseCategory, Store } from "@shared/schema";
 
 interface ExtractedItem {
@@ -26,6 +27,7 @@ interface ExtractedData {
   storeNif?: string;
   storeAddress?: string;
   purchaseDate?: string;
+  invoiceNumber?: string;
   items: ExtractedItem[];
   totalWithoutTax?: number;
   taxAmount?: number;
@@ -52,6 +54,8 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
   const [newStoreName, setNewStoreName] = useState("");
   const [newStoreNif, setNewStoreNif] = useState("");
   const [newStoreAddress, setNewStoreAddress] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [isDuplicateInvoice, setIsDuplicateInvoice] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -109,6 +113,7 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
         setNewStoreName(result.data.storeName || "");
         setNewStoreNif(result.data.storeNif || "");
         setNewStoreAddress(result.data.storeAddress || "");
+        setInvoiceNumber(result.data.invoiceNumber || "");
       } else {
         toast({
           title: "Erro na extração",
@@ -138,6 +143,7 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
       discountValue: number;
       finalTotal: number;
       purchaseDate: Date;
+      invoiceNumber?: string;
     }) => {
       return apiRequest("POST", "/api/purchases", data);
     },
@@ -268,6 +274,7 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
           discountValue: item.discountValue || 0,
           finalTotal: item.totalPrice - (item.discountValue || 0),
           purchaseDate,
+          invoiceNumber: invoiceNumber.trim() || undefined,
         });
       }
 
@@ -280,7 +287,19 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
     } catch (error: any) {
       console.error("Save error:", error);
 
-      // Tentar extrair mensagem de erro da resposta da API
+      if (error?.status === 409 ||
+          error?.message?.includes("DUPLICATE_INVOICE") ||
+          error?.message?.includes("já foi registada")) {
+        setIsDuplicateInvoice(true);
+        toast({
+          title: "Fatura duplicada",
+          description: error.message || "Esta fatura já foi registada. Verifica o número.",
+          variant: "destructive",
+          duration: 6000,
+        });
+        return;
+      }
+
       let errorMessage = "Ocorreu um erro ao guardar as compras";
       if (error?.message) {
         errorMessage = error.message;
@@ -447,6 +466,32 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
                   <span className="font-bold text-primary">{extractedData.grandTotal.toFixed(2)}€</span>
                 </div>
               )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nº Fatura / Recibo</Label>
+              <div className="relative">
+                <Input
+                  value={invoiceNumber}
+                  onChange={(e) => {
+                    setInvoiceNumber(e.target.value);
+                    setIsDuplicateInvoice(false);
+                  }}
+                  placeholder="Ex: FR 2026/1234 (opcional)"
+                  className={cn(
+                    "h-9 text-sm",
+                    isDuplicateInvoice && "border-orange-400 bg-orange-50"
+                  )}
+                />
+                {isDuplicateInvoice && (
+                  <div className="flex items-center gap-1.5 mt-1 text-orange-600">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <p className="text-xs font-medium">
+                      Esta fatura já foi registada anteriormente.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">

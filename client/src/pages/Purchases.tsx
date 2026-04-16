@@ -382,6 +382,7 @@ const purchaseFormSchema = z.object({
   totalWithoutDiscount: z.number().positive("Valor total é obrigatório"),
   discountValue: z.number().min(0).default(0),
   purchaseDate: z.string().min(1, "Data é obrigatória"),
+  invoiceNumber: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -416,6 +417,7 @@ function AddPurchaseDialog({
         ...data,
         purchaseDate: new Date(data.purchaseDate),
         finalTotal,
+        invoiceNumber: data.invoiceNumber?.trim() || undefined,
       });
     },
     onSuccess: () => {
@@ -620,6 +622,23 @@ function AddPurchaseDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="invoiceNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nº Fatura (opcional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Ex: FR 2026/1234"
+                      className="rounded-xl"
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <div className="bg-secondary/50 rounded-lg p-3 flex justify-between items-center">
               <span className="font-medium">Total Final:</span>
