@@ -536,16 +536,25 @@ export async function registerRoutes(
       const purchase = await storage.createPurchase({ ...input, userId });
       res.status(201).json(purchase);
     } catch (err) {
+      console.error("PURCHASE CREATE ERROR:", {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        body: req.body,
+      });
       if (err instanceof z.ZodError) {
         return res.status(400).json({
           message: err.errors[0].message,
           field: err.errors[0].path.join('.'),
+          details: err.errors,
         });
       }
       if (err instanceof Error && err.message.includes("não autorizado")) {
         return res.status(403).json({ message: err.message });
       }
-      throw err;
+      res.status(500).json({
+        message: "Erro interno do servidor",
+        detail: err instanceof Error ? err.message : String(err)
+      });
     }
   });
 
