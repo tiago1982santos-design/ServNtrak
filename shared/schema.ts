@@ -560,7 +560,9 @@ export const insertServiceLogLaborEntrySchema = createInsertSchema(serviceLogLab
 export const insertServiceLogMaterialEntrySchema = createInsertSchema(serviceLogMaterialEntries).omit({ id: true, createdAt: true });
 export const insertPurchaseCategorySchema = createInsertSchema(purchaseCategories).omit({ id: true, userId: true, createdAt: true });
 export const insertStoreSchema = createInsertSchema(stores).omit({ id: true, userId: true, createdAt: true });
-export const insertPurchaseSchema = createInsertSchema(purchases).omit({ id: true, userId: true, createdAt: true });
+export const insertPurchaseSchema = createInsertSchema(purchases).omit({ id: true, userId: true, createdAt: true }).extend({
+  purchaseDate: z.union([z.date(), z.string().transform((s) => new Date(s))]),
+});
 export const insertClientPaymentSchema = createInsertSchema(clientPayments).omit({ id: true, userId: true, createdAt: true });
 export const insertServiceVisitSchema = createInsertSchema(serviceVisits).omit({ id: true, userId: true, createdAt: true, completedAt: true });
 export const insertServiceVisitServiceSchema = createInsertSchema(serviceVisitServices).omit({ id: true, createdAt: true });
