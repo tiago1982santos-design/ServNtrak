@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -204,10 +204,11 @@ export default function Purchases() {
 
 function PurchaseCard({ purchase }: { purchase: PurchaseWithDetails }) {
   const { toast } = useToast();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const deleteMutation = useMutation({
     mutationFn: () => apiRequest('DELETE', `/api/purchases/${purchase.id}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
+      queryClient.invalidateQueries({ predicate: (query) =>
         typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/purchases')
       });
       toast({ title: "Compra eliminada" });
@@ -215,45 +216,73 @@ function PurchaseCard({ purchase }: { purchase: PurchaseWithDetails }) {
   });
 
   return (
-    <Card className="p-4" data-testid={`card-purchase-${purchase.id}`}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate" data-testid={`text-purchase-name-${purchase.id}`}>{purchase.productName}</h3>
-          <p className="text-sm text-muted-foreground" data-testid={`text-purchase-store-${purchase.id}`}>{purchase.store.name}</p>
-          <div className="flex flex-wrap gap-2 mt-2">
-            <Badge variant="secondary">{purchase.category.name}</Badge>
-            <Badge variant="outline">Qtd: {purchase.quantity}</Badge>
-            {purchase.client && (
-              <Badge variant="default" className="bg-green-600" data-testid={`badge-client-${purchase.id}`}>
-                <User className="w-3 h-3 mr-1" />
-                {purchase.client.name}
-              </Badge>
+    <>
+      <Card className="p-4" data-testid={`card-purchase-${purchase.id}`}>
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground truncate" data-testid={`text-purchase-name-${purchase.id}`}>{purchase.productName}</h3>
+            <p className="text-sm text-muted-foreground" data-testid={`text-purchase-store-${purchase.id}`}>{purchase.store.name}</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Badge variant="secondary">{purchase.category.name}</Badge>
+              <Badge variant="outline">Qtd: {purchase.quantity}</Badge>
+              {purchase.client && (
+                <Badge variant="default" className="bg-green-600" data-testid={`badge-client-${purchase.id}`}>
+                  <User className="w-3 h-3 mr-1" />
+                  {purchase.client.name}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="text-right shrink-0 ml-3">
+            <p className="font-bold text-lg text-primary">{purchase.finalTotal.toFixed(2)}€</p>
+            {purchase.discountValue && purchase.discountValue > 0 && (
+              <p className="text-xs text-green-600">-{purchase.discountValue.toFixed(2)}€ desc.</p>
             )}
+            <p className="text-xs text-muted-foreground mt-1">
+              {format(new Date(purchase.purchaseDate), "dd/MM/yyyy", { locale: pt })}
+            </p>
           </div>
         </div>
-        <div className="text-right shrink-0 ml-3">
-          <p className="font-bold text-lg text-primary">{purchase.finalTotal.toFixed(2)}€</p>
-          {purchase.discountValue && purchase.discountValue > 0 && (
-            <p className="text-xs text-green-600">-{purchase.discountValue.toFixed(2)}€ desc.</p>
-          )}
-          <p className="text-xs text-muted-foreground mt-1">
-            {format(new Date(purchase.purchaseDate), "dd/MM/yyyy", { locale: pt })}
-          </p>
+        <div className="flex justify-end mt-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive"
+            onClick={() => setDeleteOpen(true)}
+            data-testid={`button-delete-purchase-${purchase.id}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
-      </div>
-      <div className="flex justify-end mt-3">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-8 w-8 text-destructive"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          data-testid={`button-delete-purchase-${purchase.id}`}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </div>
-    </Card>
+      </Card>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar compra?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            "{purchase.productName}" será eliminado permanentemente.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                deleteMutation.mutate();
+                setDeleteOpen(false);
+              }}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : "Eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

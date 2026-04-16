@@ -17,6 +17,8 @@ interface ExtractedItem {
   quantity: number;
   unitPrice?: number;
   totalPrice: number;
+  discountValue?: number;
+  finalPrice?: number;
 }
 
 interface ExtractedData {
@@ -44,7 +46,7 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
   const [imageData, setImageData] = useState<string | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [itemCategories, setItemCategories] = useState<Record<number, number>>({});
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [showCreateStore, setShowCreateStore] = useState(false);
   const [newStoreName, setNewStoreName] = useState("");
@@ -58,7 +60,7 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
     setImageData(null);
     setExtractedData(null);
     setSelectedStoreId(null);
-    setSelectedCategoryId(null);
+    setItemCategories({});
     setSelectedItemIndex(0);
   }, []);
 
@@ -232,29 +234,39 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
   };
 
   const handleSaveAll = async () => {
-    if (!selectedStoreId || !selectedCategoryId || !extractedData) {
+    if (!selectedStoreId || !extractedData) {
       toast({
         title: "Dados incompletos",
-        description: "Selecione uma loja e categoria antes de guardar",
+        description: "Selecione uma loja antes de guardar",
         variant: "destructive",
       });
       return;
     }
 
-    const purchaseDate = extractedData.purchaseDate 
-      ? new Date(extractedData.purchaseDate) 
+    const purchaseDate = extractedData.purchaseDate
+      ? new Date(extractedData.purchaseDate)
       : new Date();
 
     try {
-      for (const item of extractedData.items) {
+      for (let i = 0; i < extractedData.items.length; i++) {
+        const item = extractedData.items[i];
+        const categoryId = itemCategories[i];
+        if (!categoryId) {
+          toast({
+            title: "Categoria em falta",
+            description: `Selecciona uma categoria para "${item.productName}"`,
+            variant: "destructive",
+          });
+          return;
+        }
         await savePurchaseMutation.mutateAsync({
           storeId: selectedStoreId,
-          categoryId: selectedCategoryId,
+          categoryId,
           productName: item.productName,
           quantity: item.quantity,
           totalWithoutDiscount: item.totalPrice,
-          discountValue: 0,
-          finalTotal: item.totalPrice,
+          discountValue: item.discountValue || 0,
+          finalTotal: item.totalPrice - (item.discountValue || 0),
           purchaseDate,
         });
       }
@@ -522,25 +534,6 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
             </div>
 
             <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Select
-                value={selectedCategoryId?.toString() || ""}
-                onValueChange={(v) => setSelectedCategoryId(Number(v))}
-              >
-                <SelectTrigger data-testid="select-scan-category">
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Produtos ({extractedData.items.length})</Label>
               </div>
@@ -576,6 +569,35 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
                           />
                           <span className="text-sm text-muted-foreground self-center">€</span>
                         </div>
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={item.discountValue || 0}
+                            onChange={(e) => updateItem(index, "discountValue", Number(e.target.value))}
+                            className="h-8 text-sm w-24"
+                            placeholder="Desconto"
+                          />
+                          <span className="text-xs text-muted-foreground">desc. €</span>
+                          <p className="text-xs text-green-600 font-medium">
+                            Final: {((item.totalPrice || 0) - (item.discountValue || 0)).toFixed(2)} €
+                          </p>
+                        </div>
+                        <Select
+                          value={itemCategories[index]?.toString() || ""}
+                          onValueChange={(v) => setItemCategories(prev => ({ ...prev, [index]: Number(v) }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue placeholder="Categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id.toString()}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <Button
                         variant="ghost"
@@ -604,7 +626,7 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
               <Button
                 className="flex-1"
                 onClick={handleSaveAll}
-                disabled={!selectedStoreId || !selectedCategoryId || extractedData.items.length === 0 || savePurchaseMutation.isPending}
+                disabled={!selectedStoreId || extractedData.items.length === 0 || savePurchaseMutation.isPending}
                 data-testid="button-save-purchases"
               >
                 {savePurchaseMutation.isPending ? (

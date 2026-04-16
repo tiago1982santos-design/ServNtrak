@@ -654,6 +654,8 @@ export async function registerRoutes(
       quantity: z.number().default(1),
       unitPrice: z.number().optional(),
       totalPrice: z.number(),
+      discountValue: z.number().optional(),
+      finalPrice: z.number().optional(),
     })).default([]),
     totalWithoutTax: z.number().optional(),
     taxAmount: z.number().optional(),
@@ -703,7 +705,13 @@ Analise a imagem e extraia as seguintes informações em formato JSON:
 - storeNif: NIF/Contribuinte da loja (9 dígitos)
 - storeAddress: morada da loja
 - purchaseDate: data da compra (formato YYYY-MM-DD)
-- items: lista de produtos com productName, quantity, unitPrice, totalPrice
+- items: lista de produtos com:
+  - productName: nome do produto
+  - quantity: quantidade
+  - unitPrice: preço unitário
+  - totalPrice: valor total sem desconto
+  - discountValue: valor do desconto aplicado (0 se não houver)
+  - finalPrice: valor final após desconto (= totalPrice - discountValue)
 - totalWithoutTax: total sem IVA
 - taxAmount: valor do IVA
 - grandTotal: total final com IVA
