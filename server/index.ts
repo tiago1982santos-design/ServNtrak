@@ -103,6 +103,11 @@ app.use((req, res, next) => {
     )
   `);
 
+  await pool.query(`
+    ALTER TABLE purchases
+    ADD COLUMN IF NOT EXISTS invoice_number TEXT
+  `);
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
