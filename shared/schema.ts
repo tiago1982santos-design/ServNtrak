@@ -204,6 +204,7 @@ export const purchases = pgTable("purchases", {
   discountValue: doublePrecision("discount_value").default(0), // Valor do desconto
   finalTotal: doublePrecision("final_total").notNull(), // Valor final pago
   purchaseDate: timestamp("purchase_date").notNull(),
+  invoiceNumber: text("invoice_number"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
