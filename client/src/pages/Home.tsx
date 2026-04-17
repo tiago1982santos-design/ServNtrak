@@ -11,7 +11,7 @@ import {
   CloudLightning, CloudFog, Snowflake, Wind,
   AlertTriangle, MapPin, Navigation2,
   Droplets, Leaf, CheckCircle2, Camera,
-  FileText, BarChart2, Loader2, CalendarClock, ShoppingBag, Users, ClipboardList,
+  FileText, BarChart2, Loader2, CalendarClock, ShoppingBag, Users, ClipboardList, Tag,
   Locate, LocateOff, Clock, X, Check, Pencil,
   Plus, Navigation, AlertCircle, Map, UserPlus, CreditCard, TrendingUp, Download, Bell,
 } from "lucide-react";
@@ -712,6 +712,7 @@ export default function Home() {
             { href: "/finances",      Icon: TrendingUp, label: "Financeiro",           desc: "Distribuição de rendimento mensal",          iconBg: "bg-emerald-100/70 text-emerald-700" },
             { href: "/exports",       Icon: Download,   label: "Exportações",          desc: "Exportar dados em PDF e CSV",               iconBg: "bg-slate-100/70 text-slate-600" },
             { href: "/reminders",     Icon: Bell,       label: "Lembretes",            desc: "Manutenções e alertas periódicos",           iconBg: "bg-yellow-100/70 text-yellow-700" },
+            { href: "/product-prices", Icon: Tag,       label: "Preços de Produtos",   desc: "Consultar histórico de preços",             iconBg: "bg-cyan-100/70 text-cyan-700" },
           ].map((action) => (
             <Link key={action.href} href={action.href} className="block" data-testid={`link-more-${action.href.slice(1)}`}>
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-4 hover:bg-slate-50 active:scale-[0.99] transition-all">

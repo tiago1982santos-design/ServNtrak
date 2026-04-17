@@ -205,6 +205,7 @@ export default function Purchases() {
 function PurchaseCard({ purchase }: { purchase: PurchaseWithDetails }) {
   const { toast } = useToast();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const deleteMutation = useMutation({
     mutationFn: () => apiRequest('DELETE', `/api/purchases/${purchase.id}`),
     onSuccess: () => {
@@ -217,7 +218,11 @@ function PurchaseCard({ purchase }: { purchase: PurchaseWithDetails }) {
 
   return (
     <>
-      <Card className="p-4" data-testid={`card-purchase-${purchase.id}`}>
+      <Card
+        className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => setDetailOpen(true)}
+        data-testid={`card-purchase-${purchase.id}`}
+      >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-foreground truncate" data-testid={`text-purchase-name-${purchase.id}`}>{purchase.productName}</h3>
@@ -248,7 +253,7 @@ function PurchaseCard({ purchase }: { purchase: PurchaseWithDetails }) {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-destructive"
-            onClick={() => setDeleteOpen(true)}
+            onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
             data-testid={`button-delete-purchase-${purchase.id}`}
           >
             <Trash2 className="w-4 h-4" />
@@ -282,12 +287,75 @@ function PurchaseCard({ purchase }: { purchase: PurchaseWithDetails }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{purchase.productName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <span className="text-muted-foreground">Loja</span>
+              <span className="font-medium text-right">{purchase.store.name}</span>
+              <span className="text-muted-foreground">Categoria</span>
+              <span className="font-medium text-right">{purchase.category.name}</span>
+              <span className="text-muted-foreground">Quantidade</span>
+              <span className="font-medium text-right">{purchase.quantity}</span>
+              <span className="text-muted-foreground">Data</span>
+              <span className="font-medium text-right">
+                {format(new Date(purchase.purchaseDate), "dd/MM/yyyy", { locale: pt })}
+              </span>
+              {purchase.invoiceNumber && (
+                <>
+                  <span className="text-muted-foreground">Nº Fatura</span>
+                  <span className="font-medium text-right">{purchase.invoiceNumber}</span>
+                </>
+              )}
+              {purchase.client && (
+                <>
+                  <span className="text-muted-foreground">Cliente</span>
+                  <span className="font-medium text-right">{purchase.client.name}</span>
+                </>
+              )}
+            </div>
+            <div className="border-t pt-3 space-y-1">
+              {purchase.discountValue && purchase.discountValue > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Valor sem desconto</span>
+                  <span>{purchase.totalWithoutDiscount.toFixed(2)} €</span>
+                </div>
+              )}
+              {purchase.discountValue && purchase.discountValue > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Desconto</span>
+                  <span>- {purchase.discountValue.toFixed(2)} €</span>
+                </div>
+              )}
+              <div className="flex justify-between font-bold">
+                <span>Total final</span>
+                <span className="text-primary">{purchase.finalTotal.toFixed(2)} €</span>
+              </div>
+            </div>
+            {purchase.notes && (
+              <div className="border-t pt-3">
+                <p className="text-xs text-muted-foreground">Notas</p>
+                <p className="text-sm mt-1">{purchase.notes}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="w-full" onClick={() => setDetailOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
 function StoreCard({ store }: { store: Store }) {
   const { toast } = useToast();
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const deleteMutation = useMutation({
     mutationFn: () => apiRequest('DELETE', `/api/stores/${store.id}`),
     onSuccess: () => {
@@ -297,42 +365,71 @@ function StoreCard({ store }: { store: Store }) {
   });
 
   return (
-    <Card className="p-4" data-testid={`card-store-${store.id}`}>
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate flex items-center gap-2" data-testid={`text-store-name-${store.id}`}>
-            <Building2 className="w-4 h-4 text-primary" />
-            {store.name}
-          </h3>
-          {store.address && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-              <MapPin className="w-3 h-3" />
-              {store.address}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2 mt-2">
-            {store.phone && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Phone className="w-3 h-3" /> {store.phone}
-              </span>
+    <>
+      <Card className="p-4" data-testid={`card-store-${store.id}`}>
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground truncate flex items-center gap-2" data-testid={`text-store-name-${store.id}`}>
+              <Building2 className="w-4 h-4 text-primary" />
+              {store.name}
+            </h3>
+            {store.address && (
+              <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                <MapPin className="w-3 h-3" />
+                {store.address}
+              </p>
             )}
-            {store.taxId && (
-              <Badge variant="outline" className="text-xs">NIF: {store.taxId}</Badge>
-            )}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {store.phone && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> {store.phone}
+                </span>
+              )}
+              {store.taxId && (
+                <Badge variant="outline" className="text-xs">NIF: {store.taxId}</Badge>
+              )}
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-destructive shrink-0"
+            onClick={() => setDeleteOpen(true)}
+            disabled={deleteMutation.isPending}
+            data-testid={`button-delete-store-${store.id}`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-8 w-8 text-destructive shrink-0"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          data-testid={`button-delete-store-${store.id}`}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </div>
-    </Card>
+      </Card>
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Eliminar loja?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            "{store.name}" e todas as suas compras associadas serão eliminadas permanentemente.
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                deleteMutation.mutate();
+                setDeleteOpen(false);
+              }}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : "Eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
