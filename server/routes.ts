@@ -514,6 +514,72 @@ export async function registerRoutes(
 
   // --- Purchases ---
 
+  const bulkPurchaseSchema = z.object({
+    storeId: z.number().int().positive(),
+    purchaseDate: z.union([z.date(), z.string().transform((s) => new Date(s))]),
+    invoiceNumber: z.string().optional().nullable(),
+    items: z.array(z.object({
+      categoryId: z.number().int().positive(),
+      productName: z.string().min(1),
+      quantity: z.number().positive(),
+      totalWithoutDiscount: z.number().nonnegative(),
+      discountValue: z.number().nonnegative().default(0),
+      finalTotal: z.number().nonnegative(),
+    })).min(1, "Pelo menos um produto é obrigatório"),
+  });
+
+  app.post("/api/purchases/bulk", requireAuth, async (req, res) => {
+    try {
+      const input = bulkPurchaseSchema.parse(req.body);
+      const userId = req.user!.id;
+
+      const store = await storage.getStore(input.storeId, userId);
+      if (!store) {
+        return res.status(400).json({ message: "Loja inválida" });
+      }
+
+      const invoiceNumber = input.invoiceNumber?.trim() || undefined;
+      if (invoiceNumber) {
+        const exists = await storage.checkInvoiceExists(invoiceNumber, userId);
+        if (exists) {
+          return res.status(409).json({
+            message: `A fatura ${invoiceNumber} já foi registada anteriormente.`,
+            code: "DUPLICATE_INVOICE",
+          });
+        }
+      }
+
+      const createdPurchases = await Promise.all(
+        input.items.map((item) =>
+          storage.createPurchase({
+            storeId: input.storeId,
+            purchaseDate: input.purchaseDate,
+            invoiceNumber: invoiceNumber ?? null,
+            categoryId: item.categoryId,
+            productName: item.productName,
+            quantity: item.quantity,
+            totalWithoutDiscount: item.totalWithoutDiscount,
+            discountValue: item.discountValue,
+            finalTotal: item.finalTotal,
+            userId,
+          })
+        )
+      );
+
+      res.status(201).json(createdPurchases);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+          details: err.errors,
+        });
+      }
+      console.error("BULK PURCHASE CREATE ERROR:", err);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
   app.get(api.purchases.list.path, requireAuth, async (req, res) => {
     const userId = req.user!.id;
     const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined;
