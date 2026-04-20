@@ -133,22 +133,24 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
     },
   });
 
-  const savePurchaseMutation = useMutation({
+  const savePurchasesMutation = useMutation({
     mutationFn: async (data: {
       storeId: number;
-      categoryId: number;
-      productName: string;
-      quantity: number;
-      totalWithoutDiscount: number;
-      discountValue: number;
-      finalTotal: number;
       purchaseDate: Date;
       invoiceNumber?: string;
+      items: Array<{
+        categoryId: number;
+        productName: string;
+        quantity: number;
+        totalWithoutDiscount: number;
+        discountValue: number;
+        finalTotal: number;
+      }>;
     }) => {
-      return apiRequest("POST", "/api/purchases", data);
+      return apiRequest("POST", "/api/purchases/bulk", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (query) => 
+      queryClient.invalidateQueries({ predicate: (query) =>
         typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/purchases')
       });
     },
@@ -248,34 +250,35 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
       return;
     }
 
+    for (let i = 0; i < extractedData.items.length; i++) {
+      if (!itemCategories[i]) {
+        toast({
+          title: "Categoria em falta",
+          description: `Selecciona uma categoria para "${extractedData.items[i].productName}"`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     const purchaseDate = extractedData.purchaseDate
       ? new Date(extractedData.purchaseDate)
       : new Date();
 
     try {
-      for (let i = 0; i < extractedData.items.length; i++) {
-        const item = extractedData.items[i];
-        const categoryId = itemCategories[i];
-        if (!categoryId) {
-          toast({
-            title: "Categoria em falta",
-            description: `Selecciona uma categoria para "${item.productName}"`,
-            variant: "destructive",
-          });
-          return;
-        }
-        await savePurchaseMutation.mutateAsync({
-          storeId: selectedStoreId,
-          categoryId,
+      await savePurchasesMutation.mutateAsync({
+        storeId: selectedStoreId,
+        purchaseDate,
+        invoiceNumber: invoiceNumber.trim() || undefined,
+        items: extractedData.items.map((item, i) => ({
+          categoryId: itemCategories[i],
           productName: item.productName,
           quantity: item.quantity,
           totalWithoutDiscount: item.totalPrice,
           discountValue: item.discountValue || 0,
           finalTotal: item.totalPrice - (item.discountValue || 0),
-          purchaseDate,
-          invoiceNumber: invoiceNumber.trim() || undefined,
-        });
-      }
+        })),
+      });
 
       toast({
         title: "Compras guardadas",
@@ -299,14 +302,9 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
         return;
       }
 
-      let errorMessage = "Ocorreu um erro ao guardar as compras";
-      if (error?.message) {
-        errorMessage = error.message;
-      }
-
       toast({
         title: "Erro ao guardar",
-        description: errorMessage,
+        description: error?.message || "Ocorreu um erro ao guardar as compras",
         variant: "destructive",
         duration: 8000,
       });
@@ -670,10 +668,10 @@ export function DocumentScanDialog({ open, onOpenChange, categories, stores }: D
               <Button
                 className="flex-1"
                 onClick={handleSaveAll}
-                disabled={!selectedStoreId || extractedData.items.length === 0 || savePurchaseMutation.isPending}
+                disabled={!selectedStoreId || extractedData.items.length === 0 || savePurchasesMutation.isPending}
                 data-testid="button-save-purchases"
               >
-                {savePurchaseMutation.isPending ? (
+                {savePurchasesMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : (
                   <Check className="w-4 h-4 mr-2" />
