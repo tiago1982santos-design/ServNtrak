@@ -17,26 +17,42 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
-import { 
-  Plus, ShoppingCart, Store as StoreIcon, Tag, Loader2, ChevronRight, 
-  Trash2, Edit2, MapPin, Phone, Mail, Building2, Package, Scan
+import {
+  Plus, ShoppingCart, Store as StoreIcon, Tag, Loader2, ChevronRight,
+  Trash2, Edit2, MapPin, Phone, Mail, Building2, Package, Scan, Camera
 } from "lucide-react";
 import { DocumentScanDialog } from "@/components/DocumentScanDialog";
+import { PurchaseDetails } from "@/components/PurchaseDetails";
+import { ItemPurchaseHistory } from "@/components/ItemPurchaseHistory";
 import type { PurchaseCategory, Store, PurchaseWithDetails, Client } from "@shared/schema";
 import { User } from "lucide-react";
 import { BackButton } from "@/components/BackButton";
 
+interface InvoiceSummary {
+  invoiceNumber: string | null;
+  purchaseDate: string;
+  storeName: string;
+  finalTotal: number;
+}
+
 export default function Purchases() {
   const [activeTab, setActiveTab] = useState("compras");
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("Todas");
   const [isAddPurchaseOpen, setIsAddPurchaseOpen] = useState(false);
   const [isAddStoreOpen, setIsAddStoreOpen] = useState(false);
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
-  const [isScanDialogOpen, setIsScanDialogOpen] = useState(false);
+  const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
+  const [showItemHistory, setShowItemHistory] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<PurchaseCategory[]>({
     queryKey: ['/api/purchase-categories'],
+  });
+
+  const { data: purchaseCategories } = useQuery<string[]>({
+    queryKey: ['/api/purchases/categories'],
   });
 
   const { data: stores, isLoading: storesLoading } = useQuery<Store[]>({
@@ -47,15 +63,33 @@ export default function Purchases() {
     queryKey: ['/api/clients'],
   });
 
-  const purchasesUrl = selectedCategory 
-    ? `/api/purchases?categoryId=${selectedCategory}`
-    : '/api/purchases';
-  
-  const { data: purchases, isLoading: purchasesLoading } = useQuery<PurchaseWithDetails[]>({
-    queryKey: [purchasesUrl],
+  const { data: allPurchases, isLoading: purchasesLoading } = useQuery<PurchaseWithDetails[]>({
+    queryKey: ['/api/purchases'],
   });
 
-  const filteredPurchases = purchases || [];
+  const invoices: InvoiceSummary[] = [];
+  if (allPurchases) {
+    const grouped = new Map<string | null, PurchaseWithDetails[]>();
+    allPurchases.forEach(p => {
+      const key = p.invoiceNumber || `temp-${p.id}`;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(p);
+    });
+
+    grouped.forEach((items, key) => {
+      const first = items[0];
+      if (selectedCategory === "Todas" || items.some(p => p.category.name === selectedCategory)) {
+        invoices.push({
+          invoiceNumber: first.invoiceNumber || null,
+          purchaseDate: first.purchaseDate,
+          storeName: first.store.name,
+          finalTotal: items.reduce((sum, p) => sum + p.finalTotal, 0),
+        });
+      }
+    });
+  }
+
+  invoices.sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
 
   return (
     <div className="min-h-screen bg-background pb-24 page-transition">
@@ -91,45 +125,45 @@ export default function Purchases() {
           </TabsList>
 
           <TabsContent value="compras" className="space-y-4">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <Select 
-                value={selectedCategory?.toString() || "all"} 
-                onValueChange={(v) => setSelectedCategory(v === "all" ? null : Number(v))}
+            <div className="mb-4">
+              <Button
+                onClick={() => setDocumentDialogOpen(true)}
+                className="w-full"
               >
-                <SelectTrigger className="w-40" data-testid="select-category-filter">
-                  <SelectValue placeholder="Todas as categorias" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as categorias</SelectItem>
-                  {categories?.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              
-              <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => setIsScanDialogOpen(true)}
-                  data-testid="button-scan-document"
+                <Camera className="w-4 h-4 mr-2" />
+                Digitalizar Fatura
+              </Button>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              <button
+                onClick={() => setSelectedCategory("Todas")}
+                className={`px-3 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${
+                  selectedCategory === "Todas"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground"
+                }`}
+              >
+                Todas
+              </button>
+              {purchaseCategories?.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1 rounded-full text-sm whitespace-nowrap transition-colors ${
+                    selectedCategory === cat
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-secondary-foreground"
+                  }`}
                 >
-                  <Scan className="w-4 h-4 mr-1" />
-                  Digitalizar
-                </Button>
-                <AddPurchaseDialog 
-                  open={isAddPurchaseOpen} 
-                  onOpenChange={setIsAddPurchaseOpen}
-                  categories={categories || []}
-                  stores={stores || []}
-                  clients={clients || []}
-                />
-              </div>
+                  {cat}
+                </button>
+              ))}
             </div>
 
             <DocumentScanDialog
-              open={isScanDialogOpen}
-              onOpenChange={setIsScanDialogOpen}
+              open={documentDialogOpen}
+              onOpenChange={setDocumentDialogOpen}
               categories={categories || []}
               stores={stores || []}
             />
@@ -138,19 +172,105 @@ export default function Purchases() {
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
               </div>
-            ) : filteredPurchases.length === 0 ? (
+            ) : invoices.length === 0 ? (
               <Card className="p-8 text-center">
                 <Package className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="font-medium text-foreground">Sem compras registadas</p>
-                <p className="text-sm text-muted-foreground mt-1">Adicione a sua primeira compra</p>
+                <p className="font-medium text-foreground">Sem faturas registadas</p>
+                <p className="text-sm text-muted-foreground mt-1">Digitalize ou adicione uma fatura</p>
               </Card>
             ) : (
               <div className="space-y-3">
-                {filteredPurchases.map((purchase) => (
-                  <PurchaseCard key={purchase.id} purchase={purchase} />
+                {invoices.map((invoice) => (
+                  <Card
+                    key={invoice.invoiceNumber || `${invoice.purchaseDate}-${invoice.storeName}`}
+                    className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setSelectedInvoice(invoice.invoiceNumber)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold">
+                          {invoice.invoiceNumber || "Sem número"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">{invoice.storeName}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(invoice.purchaseDate), "dd/MM/yyyy", { locale: pt })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-primary">
+                          {invoice.finalTotal.toFixed(2)}€
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
                 ))}
               </div>
             )}
+
+            <div className="mt-6 space-y-2">
+              <h3 className="font-semibold">Histórico por Artigo</h3>
+              {selectedCategory !== "Todas" && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Artigo</th>
+                        <th className="text-right p-2">Última Compra</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allPurchases
+                        ?.filter(p => p.category.name === selectedCategory)
+                        .reduce((acc: Map<string, PurchaseWithDetails>, p) => {
+                          if (!acc.has(p.productName) || new Date(p.purchaseDate) > new Date(acc.get(p.productName)!.purchaseDate)) {
+                            acc.set(p.productName, p);
+                          }
+                          return acc;
+                        }, new Map())
+                        .entries()
+                        .map(([productName, purchase]) => (
+                          <tr key={productName} className="border-b hover:bg-muted/50 cursor-pointer"
+                            onClick={() => {
+                              setSelectedItem(productName);
+                              setShowItemHistory(true);
+                            }}>
+                            <td className="p-2">{productName}</td>
+                            <td className="text-right p-2 text-primary font-medium">{purchase.id}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {selectedInvoice && (
+              <PurchaseDetails
+                invoiceNumber={selectedInvoice}
+                onClose={() => setSelectedInvoice(null)}
+              />
+            )}
+
+            {showItemHistory && selectedItem && (
+              <ItemPurchaseHistory
+                productName={selectedItem}
+                onClose={() => {
+                  setShowItemHistory(false);
+                  setSelectedItem(null);
+                }}
+              />
+            )}
+
+            <div className="mt-6 space-y-2">
+              <h3 className="font-semibold">Adicionar Compra</h3>
+              <AddPurchaseDialog
+                open={isAddPurchaseOpen}
+                onOpenChange={setIsAddPurchaseOpen}
+                categories={categories || []}
+                stores={stores || []}
+                clients={clients || []}
+              />
+            </div>
           </TabsContent>
 
           <TabsContent value="lojas" className="space-y-4">

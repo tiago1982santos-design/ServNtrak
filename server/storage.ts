@@ -97,6 +97,9 @@ export interface IStorage {
   updatePurchase(id: number, userId: string, updates: Partial<InsertPurchase>): Promise<Purchase | undefined>;
   deletePurchase(id: number, userId: string): Promise<void>;
   checkInvoiceExists(invoiceNumber: string, userId: string): Promise<boolean>;
+  getPurchasesByInvoice(invoiceNumber: string, userId: string): Promise<PurchaseWithDetails[]>;
+  getDistinctItemsByCategory(category: string, userId: string): Promise<Array<{ productName: string; latestPurchaseId: number }>>;
+  getPurchasesByProductName(productName: string, userId: string): Promise<PurchaseWithDetails[]>;
 
   // Client Payments
   getClientPayments(userId: string, year?: number, month?: number): Promise<ClientPaymentWithClient[]>;
@@ -761,6 +764,84 @@ export class DatabaseStorage implements IStorage {
 
   async deletePurchase(id: number, userId: string): Promise<void> {
     await db.delete(purchases).where(and(eq(purchases.id, id), eq(purchases.userId, userId)));
+  }
+
+  async getPurchasesByInvoice(invoiceNumber: string, userId: string): Promise<PurchaseWithDetails[]> {
+    const result = await db
+      .select({
+        purchase: purchases,
+        store: stores,
+        category: purchaseCategories,
+        client: clients,
+      })
+      .from(purchases)
+      .innerJoin(stores, eq(purchases.storeId, stores.id))
+      .innerJoin(purchaseCategories, eq(purchases.categoryId, purchaseCategories.id))
+      .leftJoin(clients, and(eq(purchases.clientId, clients.id), eq(clients.userId, purchases.userId)))
+      .where(and(eq(purchases.invoiceNumber, invoiceNumber), eq(purchases.userId, userId)))
+      .orderBy(desc(purchases.purchaseDate));
+
+    return result.map(r => ({
+      ...r.purchase,
+      store: r.store,
+      category: r.category,
+      client: r.client,
+    }));
+  }
+
+  async getDistinctItemsByCategory(category: string, userId: string): Promise<Array<{ productName: string; latestPurchaseId: number }>> {
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+    const result = await db
+      .select({
+        productName: purchases.productName,
+        latestPurchaseId: purchases.id,
+        purchaseDate: purchases.purchaseDate,
+      })
+      .from(purchases)
+      .innerJoin(purchaseCategories, eq(purchases.categoryId, purchaseCategories.id))
+      .where(and(
+        eq(purchases.userId, userId),
+        eq(purchaseCategories.name, category),
+        sql`${purchases.purchaseDate} > ${oneYearAgo}`
+      ))
+      .orderBy(purchases.productName, desc(purchases.purchaseDate));
+
+    const grouped = new Map<string, number>();
+    result.forEach(row => {
+      if (!grouped.has(row.productName)) {
+        grouped.set(row.productName, row.latestPurchaseId);
+      }
+    });
+
+    return Array.from(grouped.entries()).map(([productName, latestPurchaseId]) => ({
+      productName,
+      latestPurchaseId,
+    }));
+  }
+
+  async getPurchasesByProductName(productName: string, userId: string): Promise<PurchaseWithDetails[]> {
+    const result = await db
+      .select({
+        purchase: purchases,
+        store: stores,
+        category: purchaseCategories,
+        client: clients,
+      })
+      .from(purchases)
+      .innerJoin(stores, eq(purchases.storeId, stores.id))
+      .innerJoin(purchaseCategories, eq(purchases.categoryId, purchaseCategories.id))
+      .leftJoin(clients, and(eq(purchases.clientId, clients.id), eq(clients.userId, purchases.userId)))
+      .where(and(eq(purchases.productName, productName), eq(purchases.userId, userId)))
+      .orderBy(desc(purchases.purchaseDate));
+
+    return result.map(r => ({
+      ...r.purchase,
+      store: r.store,
+      category: r.category,
+      client: r.client,
+    }));
   }
 
   // Client Payments

@@ -666,6 +666,34 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  app.get("/api/purchases/categories", requireAuth, async (req, res) => {
+    const userId = req.user!.id;
+    const categories = await storage.getPurchaseCategories(userId);
+    const categoryNames = Array.from(new Set(categories.map(c => c.name))).sort();
+    res.json(categoryNames);
+  });
+
+  app.get("/api/purchases/details/:invoiceNumber", requireAuth, async (req, res) => {
+    const userId = req.user!.id;
+    const invoiceNumber = req.params.invoiceNumber;
+    const purchases = await storage.getPurchasesByInvoice(invoiceNumber, userId);
+    res.json(purchases);
+  });
+
+  app.get("/api/purchases/items/:category", requireAuth, async (req, res) => {
+    const userId = req.user!.id;
+    const category = req.params.category;
+    const items = await storage.getDistinctItemsByCategory(category, userId);
+    res.json(items);
+  });
+
+  app.get("/api/purchases/item/:productName", requireAuth, async (req, res) => {
+    const userId = req.user!.id;
+    const productName = req.params.productName;
+    const purchases = await storage.getPurchasesByProductName(productName, userId);
+    res.json(purchases);
+  });
+
   // --- Client Payments ---
 
   app.get(api.clientPayments.list.path, requireAuth, async (req, res) => {
