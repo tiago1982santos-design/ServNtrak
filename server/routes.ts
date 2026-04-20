@@ -514,23 +514,28 @@ export async function registerRoutes(
 
   // --- Purchases ---
 
+  // Derived from insertPurchaseSchema so item fields stay in sync with the canonical schema
+  const bulkPurchaseItemSchema = api.purchases.create.input.pick({
+    categoryId: true,
+    productName: true,
+    quantity: true,
+    totalWithoutDiscount: true,
+    discountValue: true,
+    finalTotal: true,
+  });
+
   const bulkPurchaseSchema = z.object({
     storeId: z.number().int().positive(),
     purchaseDate: z.union([z.date(), z.string().transform((s) => new Date(s))]),
     invoiceNumber: z.string().optional().nullable(),
-    items: z.array(z.object({
-      categoryId: z.number().int().positive(),
-      productName: z.string().min(1),
-      quantity: z.number().positive(),
-      totalWithoutDiscount: z.number().nonnegative(),
-      discountValue: z.number().nonnegative().default(0),
-      finalTotal: z.number().nonnegative(),
-    })).min(1, "Pelo menos um produto é obrigatório"),
+    items: z.array(bulkPurchaseItemSchema).min(1, "Pelo menos um produto é obrigatório"),
   });
+
+  type BulkPurchaseInput = z.infer<typeof bulkPurchaseSchema>;
 
   app.post("/api/purchases/bulk", requireAuth, async (req, res) => {
     try {
-      const input = bulkPurchaseSchema.parse(req.body);
+      const input: BulkPurchaseInput = bulkPurchaseSchema.parse(req.body);
       const userId = req.user!.id;
 
       const store = await storage.getStore(input.storeId, userId);
