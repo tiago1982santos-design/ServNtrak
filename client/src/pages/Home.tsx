@@ -16,8 +16,10 @@ import {
   Plus, Navigation, AlertCircle, Map, UserPlus, CreditCard, TrendingUp, Download, Bell,
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
+import { DocumentScanDialog } from "@/components/DocumentScanDialog";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/react-query";
+import type { PurchaseCategory, Store } from "@shared/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 
 const SERVICE_COLORS: Record<string, string> = {
@@ -257,6 +259,9 @@ export default function Home() {
   const queryClient = useQueryClient();
   const [ajustarVisita, setAjustarVisita] = useState<VisitaConcluida | null>(null);
   const [ajustarMinutos, setAjustarMinutos] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
+  const { data: categories = [] } = useQuery<PurchaseCategory[]>({ queryKey: ['/api/purchase-categories'] });
+  const { data: stores = [] } = useQuery<Store[]>({ queryKey: ['/api/stores'] });
 
   const todayStart = useMemo(() => startOfDay(new Date()).toISOString(), []);
 
@@ -702,19 +707,20 @@ export default function Home() {
         {/* ── MORE ACTIONS ─────────────────────── */}
         <div className="space-y-3 mb-4">
           <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-1">Mais</h3>
-          {[
-            { href: "/pending-tasks", Icon: ClipboardList, label: "Tarefas Pendentes", desc: "Ver todas as tarefas por fazer", iconBg: "bg-amber-100/70 text-amber-700" },
-            { href: "/employees",    Icon: Users,          label: "Funcionários",       desc: "Gerir equipa e salários",         iconBg: "bg-orange-100/70 text-orange-700" },
-            { href: "/purchases",    Icon: ShoppingBag,    label: "Compras e Despesas", desc: "Gerir materiais e gastos",                   iconBg: "bg-green-100/70 text-green-700" },
-            { href: "/expense-notes", Icon: FileText,   label: "Notas de Despesa",   desc: "Documentos de serviços prestados",          iconBg: "bg-teal-100/70 text-teal-700" },
-            { href: "/quotes",        Icon: ClipboardList, label: "Orçamentos",       desc: "Criar e enviar propostas aos clientes",     iconBg: "bg-indigo-100/70 text-indigo-700" },
-            { href: "/payments",      Icon: CreditCard, label: "Mensalidades",        desc: "Gerir pagamentos mensais dos clientes",     iconBg: "bg-purple-100/70 text-purple-700" },
-            { href: "/finances",      Icon: TrendingUp, label: "Financeiro",           desc: "Distribuição de rendimento mensal",          iconBg: "bg-emerald-100/70 text-emerald-700" },
-            { href: "/exports",       Icon: Download,   label: "Exportações",          desc: "Exportar dados em PDF e CSV",               iconBg: "bg-slate-100/70 text-slate-600" },
-            { href: "/reminders",     Icon: Bell,       label: "Lembretes",            desc: "Manutenções e alertas periódicos",           iconBg: "bg-yellow-100/70 text-yellow-700" },
-            { href: "/product-prices", Icon: Tag,       label: "Preços de Produtos",   desc: "Consultar histórico de preços",             iconBg: "bg-cyan-100/70 text-cyan-700" },
-          ].map((action) => (
-            <Link key={action.href} href={action.href} className="block" data-testid={`link-more-${action.href.slice(1)}`}>
+          {([
+            { onClick: () => setScanOpen(true), Icon: Camera,      label: "Digitalizar Fatura",  desc: "Tirar foto e registar compra automaticamente", iconBg: "bg-rose-100/70 text-rose-700" },
+            { href: "/pending-tasks", Icon: ClipboardList, label: "Tarefas Pendentes",   desc: "Ver todas as tarefas por fazer",               iconBg: "bg-amber-100/70 text-amber-700" },
+            { href: "/employees",     Icon: Users,         label: "Funcionários",         desc: "Gerir equipa e salários",                      iconBg: "bg-orange-100/70 text-orange-700" },
+            { href: "/purchases",     Icon: ShoppingBag,   label: "Compras e Despesas",   desc: "Gerir materiais e gastos",                     iconBg: "bg-green-100/70 text-green-700" },
+            { href: "/expense-notes", Icon: FileText,      label: "Notas de Despesa",     desc: "Documentos de serviços prestados",             iconBg: "bg-teal-100/70 text-teal-700" },
+            { href: "/quotes",        Icon: ClipboardList, label: "Orçamentos",           desc: "Criar e enviar propostas aos clientes",        iconBg: "bg-indigo-100/70 text-indigo-700" },
+            { href: "/payments",      Icon: CreditCard,    label: "Mensalidades",         desc: "Gerir pagamentos mensais dos clientes",        iconBg: "bg-purple-100/70 text-purple-700" },
+            { href: "/finances",      Icon: TrendingUp,    label: "Financeiro",           desc: "Distribuição de rendimento mensal",            iconBg: "bg-emerald-100/70 text-emerald-700" },
+            { href: "/exports",       Icon: Download,      label: "Exportações",          desc: "Exportar dados em PDF e CSV",                  iconBg: "bg-slate-100/70 text-slate-600" },
+            { href: "/reminders",     Icon: Bell,          label: "Lembretes",            desc: "Manutenções e alertas periódicos",             iconBg: "bg-yellow-100/70 text-yellow-700" },
+            { href: "/product-prices", Icon: Tag,          label: "Preços de Produtos",   desc: "Consultar histórico de preços",                iconBg: "bg-cyan-100/70 text-cyan-700" },
+          ] as Array<{ href?: string; onClick?: () => void; Icon: React.ElementType; label: string; desc: string; iconBg: string }>).map((action) => {
+            const inner = (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-4 hover:bg-slate-50 active:scale-[0.99] transition-all">
                 <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0", action.iconBg)}>
                   <action.Icon className="w-5 h-5" />
@@ -724,8 +730,20 @@ export default function Home() {
                   <p className="text-sm text-slate-500">{action.desc}</p>
                 </div>
               </div>
-            </Link>
-          ))}
+            );
+            if (action.href) {
+              return (
+                <Link key={action.href} href={action.href} className="block" data-testid={`link-more-${action.href.slice(1)}`}>
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <div key={action.label} className="block cursor-pointer" onClick={action.onClick} data-testid={`link-more-${action.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-")}`}>
+                {inner}
+              </div>
+            );
+          })}
         </div>
 
         {/* ── GPS TRACKING ─────────────────────── */}
@@ -759,6 +777,7 @@ export default function Home() {
 
       </main>
 
+      <DocumentScanDialog open={scanOpen} onOpenChange={setScanOpen} categories={categories} stores={stores} />
       <BottomNav />
 
       <style dangerouslySetInnerHTML={{__html: `
